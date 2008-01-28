@@ -1,0 +1,17 @@
+MANIFEST
+README
+LICENSE
+Todo
+Changes
+Makefile.PL
+lib/Win32/MSI/HighLevel.pm
+lib/Win32/MSI/HighLevel/Common.pm
+lib/Win32/MSI/HighLevel/View.pm
+lib/Win32/MSI/HighLevel/Summary.pm
+lib/Win32/MSI/HighLevel/Record.pm
+lib/Win32/MSI/HighLevel/ErrorTable.pm
+lib/Win32/MSI/HighLevel/Handle.pm
+t/01_HighLevel.t
+t/pod.t
+t/pod_cover.t
+META.yml                                 Module meta-data (added by MakeMaker)
