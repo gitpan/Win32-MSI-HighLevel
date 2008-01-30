@@ -9,7 +9,7 @@ require 5.007003;    # for Digest::MD5
 BEGIN {
     use Exporter ();
     use vars qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
-    $VERSION     = '1.000000';
+    $VERSION     = '1.0001';
     @ISA         = qw(Exporter);
     @EXPORT      = qw();
     @EXPORT_OK   = qw();
@@ -31,7 +31,7 @@ use Win32::MSI::HighLevel::Record;
 use Win32::MSI::HighLevel::ErrorTable;
 use base qw(Win32::MSI::HighLevel::Handle Exporter);
 
-our $VERSION = "1.000000";
+our $VERSION = "1.0001";
 
 our @EXPORT_OK = qw(
     kMSIDBOPEN_READONLY kMSIDBOPEN_TRANSACT kMSIDBOPEN_DIRECT kMSIDBOPEN_CREATE
@@ -59,7 +59,7 @@ Win32::MSI::HighLevel - Perl wrapper for Windows Installer API
 
 =head1 VERSION
 
-Version 1.000000
+Version 1.0001
 
 =head1 SYNOPSIS
 
@@ -91,6 +91,19 @@ Version 1.000000
     $msi = 0;
 
 =head1 DESCRIPTION
+
+Win32::MSI::HighLevel allows the creation (and editing) of Microsoft's Windows
+Installer technology based installer files (.msi files).
+
+The initial impetus to create this module came from trying to find an automated
+build system friendly way of creating Windows installers. This has been very
+nicely achieved, especially as the core table information can be provided in
+text based table description files and thus managed with a revision control
+system.
+
+Windows Installer files are simply database files. Almost all the information
+required for an installer is managed in tables in the database. This module
+facilitates manipulating the information in the tables.
 
 =head2 Obtaining a database object
 
@@ -453,18 +466,21 @@ sub commit {
 
 =head3 addAppSearch
 
-Add a binary file to the installation.
+Add an entry to the AppSearch table.
 
 =over 4
 
-=item I<-Name>: required
+=item I<-Property>: required
 
-Id to be used as the key entry in the binary file table. This entry must be
-unique.
+Property that is set by the AppSearch action when it finds a match for the
+signature.
 
-=item I<-file>: required
+=item I<-Signature_>: required
 
-Path to the file to be added on the source system.
+An entry into the Signature table (for a file) or a directory name.
+
+Note that support is not currently provided for adding an entry to the Signature
+table!
 
 =back
 
@@ -702,7 +718,7 @@ Add an entry to the custom action table.
 
 This provides fairly raw access to the CustomAction table and is only part of
 the work required to set up a custom action. See the CustomAction
-Table section in the documentation referenced in the See Also section for
+Table section in the documentation referenced in the L<See Also|/"SEE ALSO"> section for
 further information.
 
 =over 4
@@ -829,7 +845,8 @@ sub addDirectory {
 C<addDirPath> is not fully implemented should not be used. Use multiple calls
 to C<addDirectory> instead.
 
-#
+=cut
+
 #    my $root = $msi->addDirPath (-source => $rootDir, -target => $installDir);
 #
 #C<addDirPath> adds a directory tree rooted at C<-source> on the generating
@@ -877,8 +894,8 @@ to C<addDirectory> instead.
 #filename) is given, a short file name will be generated.
 #
 #=back
-
-=cut
+#
+#=cut
 
 sub addDirPath {
     my ($self, %params) = @_;
@@ -1335,7 +1352,7 @@ Add an entry to the custom action table.
 
 This provides fairly raw access to the CustomAction table and is only part of
 the work required to set up a custom action. See the CustomAction
-Table section in the documentation referenced in the See Also section for
+Table section in the documentation referenced in the L<See Also|/"SEE ALSO"> section for
 further information.
 
 =over 4
@@ -1427,7 +1444,7 @@ Add an entry to the custom action table.
 
 This provides fairly raw access to the CustomAction table and is only part of
 the work required to set up a custom action. See the CustomAction
-Table section in the documentation referenced in the See Also section for
+Table section in the documentation referenced in the L<See Also|/"SEE ALSO"> section for
 further information.
 
 =over 4
@@ -1457,28 +1474,48 @@ sub addLaunchCondition {
 }
 
 
-=head3 addMedia (see also C<setProperty>)
+=head3 addMedia (see also L<setProperty>)
 
-Add a property value to the Property table. A new property id is generated based
-on the supplied id if a property of the same name exists already.
+Add a cabinet file to the Media table.
 
-    $msi->addMedia (-Property => 'Manufacturer', -Value => 'Wibble Corp.');
+    $msi->addMedia (-Cabinet => '#cab1', -DiskId => 1, -LastSequence => 20);
 
-The actual property id used is returned.
+If all the files required by the install are to be part of the .msi file then
+addMedia can be ignored - L<createCabs> does all the work required.
 
 =over 4
 
-=item I<-Cabinet>: required
+=item I<-Cabinet>: optional
 
-Property value
+Name of the cabinet file.
+
+A # as the first character in the name indicates that the cabinet file will be
+stored in a stream in the .msi file. In this case the name is case sensitive.
+
+If the first character in the name is not a # then the name must be given as a
+short file name (8.3 format) and the cabinet is stored in a separate file
+located at the root of the source tree specified by the Directory Table.
 
 =item I<-DiskId>: required
 
-Suggested property name
+A number (1 or greater) that determines the sort order of the media table.
 
 =item I<-LastSequence>: required
 
-Property value
+Sequence number of the last file in this media.
+
+=item I<-DiskPrompt>: optional
+
+Name (on the lable for physical media) used to identify the physical media
+associated with this media entry.
+
+=item I<-Source>: optional
+
+Source to be used for patching.
+
+=item I<-VolumeLabel>: optional
+
+Volume label to be used to identify physical media.
 
 =back
 
@@ -1489,7 +1526,7 @@ sub addMedia {
     my $table = $self->{tables}{Media} ||= {};
 
     Win32::MSI::HighLevel::Common::require (\%params,
-        qw(-Cabinet -DiskId -LastSequence));
+        qw(-DiskId -LastSequence));
     Win32::MSI::HighLevel::Common::allow (\%params,
         qw(-Cabinet -DiskId -DiskPrompt -LastSequence -Source -VolumeLabel));
 
@@ -1497,7 +1534,7 @@ sub addMedia {
 }
 
 
-=head3 addProperty (see also C<setProperty>)
+=head3 addProperty (see also L<setProperty>)
 
 Add a property value to the Property table. A new property id is generated based
 on the supplied id if a property of the same name exists already.
@@ -1968,25 +2005,13 @@ Creates a new database table.
 
 =item I<-columnSpec>: optional
 
-Specification for the table's columns. This must be provided for tables other
-than:
+Specification for the table's columns. This is required for tables that
+Win32::MSI::HighLevel doesn't handle by default.
 
-=over 4
-
-=item Directory
-
-=item Feature
-
-=item Media
-
-=item Property
-
-=item Shortcut
-
-=back
+Note that custom tables may be added to the installer file.
 
 The column specification comprises an array of column name => type pairs.
-Recognised types are:
+Most of the types mentioned in the MSDN documentation are recognised, including:
 
 =over 4
 
@@ -2315,6 +2340,11 @@ have the extension '.idb'.
 Note that the table name _SummaryInformation may be used to write out the
 Summary Information Stream.
 
+Also note that the exported file format is ideal for management using a revision
+control system.
+
+See also L<importTable>.
+
 =cut
 
 sub exportTable {
@@ -2435,9 +2465,12 @@ sub getProduct {
 
 =head3 getProductCode
 
-Return a string containing product and major version information.
+Return a GUID as a string containing product code for the installer.
 
     my $productGUID = $msi->getProductCode ();
+
+If a product code does not yet exist it will be generated as the MD5 sum of the
+ProductName, ProductLanguage, ProductVersion and Manufacturer property values.
 
 =cut
 
@@ -2469,13 +2502,17 @@ sub getProperty {
 
 =head3 getTableEntry
 
-Return the table column data for a given table entry.
+Return a reference to the table column data for a given table entry.
 
     my $entry = $msi->getTableEntry ('File', {-File => 'wibble.exe'});
 
-Returns undef if the table or key don't exist.
+Returns undef if the table or key doesn't exist.
 
-If fields within the $entry hash ref are edited updateTableEntry must be called.
+If fields within the $entry hash ref are edited L<updateTableEntry> must be called.
+
+A degree of caution is advised in using this member. Very little checking can
+be performed on the results of editing the hash returned. Generally errors will
+result in failures at L<writeTables> time.
 
 =cut
 
@@ -2514,10 +2551,11 @@ Note that the paths may use either \ or / delimiters. All path components are
 assumed to be long (not short "filename"). Short "filenames" will be generated
 as required.
 
-A second boolean parameter may be provided to indicate that the Directory is
-public. That is, that at install time the user may change the install location
-for the directory. If a true value is provided as the second parameter the
-directory Id is forced to upper case to make the entry a public directory entry.
+An optional (second) boolean parameter may be provided to indicate that the
+Directory is public. That is, that at install time the user may change the
+install location for the directory. If a true value is provided as the second
+parameter the directory Id is forced to upper case to make the entry a public
+directory entry.
 
 The following system folder properties may be used directly as shown in the sample
 code above:
@@ -2615,9 +2653,10 @@ sub getTargetDirID {
 
 =head3 haveDirId dirName
 
-Returns true if the Directory table entry for the given directory Id exists.
+Returns a reference to the Directory table entry for given directory Id if it
+exists or undef otherwise.
 
-The returned table entry
+    my $dirEntry = $msi->haveDirId ('Wibble');
 
 =cut
 
@@ -2631,13 +2670,16 @@ sub haveDirId {
 
 =head3 importTable
 
-Saves a database table in a .csv file format.
+Imports an exported database table in a .csv file format.
 
     my $table = $msi->importTable ('Directory', '.\Tables');
 
-Important! If you have edited tables it would be prudent to C<writeTables>
-before calling C<importTable> and then C<populateTables> following the import to
-ensure the cached table information matches the database version.
+    $msi->writeTables ();
+    $msi->populateTables ();
+
+Important! You should C<writeTables> and then C<populateTables> following
+calling C<importTable> to ensure the cached table information matches the
+database version.
 
 The sample code would import the Directory table from the file 'Directory.idt'
 in the Tables sub-directory of current working directory.
@@ -3686,10 +3728,8 @@ sub _nextSeqNum {
 =head1 REMARKS
 
 This module depends on C<Win32::API>, which is used to import the
-functions out of the F<msi.dll>.
-
-This module was inspired by, and is derived in part from Philipp Marek's
-Win32::MSI::DB.
+functions out of the F<msi.dll>. Microsoft's Windows Installer technology must
+be installed on your system for this module to work.
 
 =head1 BUGS
 
@@ -3701,11 +3741,8 @@ your bug as I make changes.
 
 =head1 SUPPORT
 
-You can find documentation for this module with the perldoc command.
-
-    perldoc Win32::MSI::HighLevel
-
-You can also look for information at:
+This module is supported by the author through CPAN. The following links may be
+of assistance:
 
 =over 4
 
@@ -3728,6 +3765,9 @@ L<http://search.cpan.org/dist/Win32-MSI-HighLevel>
 =back
 
 =head1 ACKNOWLEDGEMENTS
+
+This module was inspired by, and is derived in part from Philipp Marek's
+L<http://search.cpan.org/dist/Win32-MSI-DB>.
 
 =head1 AUTHOR
 

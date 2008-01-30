@@ -13,14 +13,18 @@ Test Win32::MSI::HighLevel
 =cut
 
 BEGIN {
-    use lib '../lib';
-    use_ok("Win32::MSI::HighLevel");
-}
+    use lib '../lib'; # For development testing
+    use Win32::API;
 
-if ( $^O eq 'MSWin32' ) {
-    plan('no_plan');
-} else {
-    plan( skip_all => "Windows only module. Tests irrelevant on $^O" );
+    if ($^O ne 'MSWin32') {
+        plan( skip_all => "Windows only module. Tests irrelevant on $^O" );
+    } elsif (! Win32::API->new ("kernel32", 'LoadLibrary', "P", 'I')->Call ('msi')) {
+        plan( skip_all => "msi.dll required - Windows Installer must be installed" );
+    } else {
+        plan(tests => 28);
+    }
+
+    use_ok ("Win32::MSI::HighLevel");
 }
 
 my $filename = 'delme.msi';

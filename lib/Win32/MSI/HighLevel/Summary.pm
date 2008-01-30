@@ -1,6 +1,41 @@
 use strict;
 use warnings;
 
+=head1 NAME
+
+Win32::MSI::HighLevel::Summary - Helper module for Win32::MSI::HighLevel.
+
+=head1 VERSION
+
+Version 1.0001
+
+=head1 AUTHOR
+
+    Peter Jaquiery
+    CPAN ID: GRANDPA
+    grandpa@cpan.org
+
+=head1 COPYRIGHT & LICENSE
+
+This program is free software; you can redistribute
+it and/or modify it under the same terms as Perl itself.
+
+The full text of the license can be found in the
+LICENSE file included with this module.
+
+=cut
+
+BEGIN {
+    use Exporter ();
+    use vars qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
+    $VERSION     = '1.0001';
+    @ISA         = qw(Exporter);
+    @EXPORT      = qw();
+    @EXPORT_OK   = qw();
+    %EXPORT_TAGS = ();
+}
+
+
 package Win32::MSI::HighLevel::Summary;
 
 use Win32::API;
@@ -48,7 +83,7 @@ sub new {
 
     my $hdl = Win32::MSI::HighLevel::Handle->null ();
     my $filename;
-    
+
     $params{result} = $MsiGetSummaryInformation->Call
         ($highLevel->{handle}, 0, 19, $hdl);
 
@@ -62,7 +97,7 @@ sub new {
 sub DESTROY {
     my $self = shift;
     my $result = $MsiSummaryInfoPersist->Call ($self->{handle});
-    
+
     croak "Error code $self->{result} persisting Summary Stream"
         if $self->{result};
 
@@ -71,28 +106,25 @@ sub DESTROY {
 }
 
 
-=head3
+    #Property name           Property ID         PID Type
+    #Codepage                PID_CODEPAGE        1   VT_I2
+    #Title                   PID_TITLE           2   VT_LPSTR
+    #Subject                 PID_SUBJECT         3   VT_LPSTR
+    #Author                  PID_AUTHOR          4   VT_LPSTR
+    #Keywords                PID_KEYWORDS        5   VT_LPSTR
+    #Comments                PID_COMMENTS        6   VT_LPSTR
+    #Template                PID_TEMPLATE        7   VT_LPSTR
+    #Last Saved By           PID_LASTAUTHOR      8   VT_LPSTR
+    #Revision Number         PID_REVNUMBER       9   VT_LPSTR
+    #Last Printed            PID_LASTPRINTED     11  VT_FILETIME
+    #Create Time/Date        PID_CREATE_DTM      12  VT_FILETIME
+    #Last Save Time/Date     PID_LASTSAVE_DTM    13  VT_FILETIME
+    #Page Count              PID_PAGECOUNT       14  VT_I4
+    #Word Count              PID_WORDCOUNT       15  VT_I4
+    #Character Count         PID_CHARCOUNT       16  VT_I4
+    #Creating Application    PID_APPNAME         18  VT_LPSTR
+    #Security                PID_SECURITY        19  VT_I4
 
-    Property name           Property ID         PID Type
-    Codepage                PID_CODEPAGE        1   VT_I2
-    Title                   PID_TITLE           2   VT_LPSTR
-    Subject                 PID_SUBJECT         3   VT_LPSTR
-    Author                  PID_AUTHOR          4   VT_LPSTR
-    Keywords                PID_KEYWORDS        5   VT_LPSTR
-    Comments                PID_COMMENTS        6   VT_LPSTR
-    Template                PID_TEMPLATE        7   VT_LPSTR
-    Last Saved By           PID_LASTAUTHOR      8   VT_LPSTR
-    Revision Number         PID_REVNUMBER       9   VT_LPSTR
-    Last Printed            PID_LASTPRINTED     11  VT_FILETIME
-    Create Time/Date        PID_CREATE_DTM      12  VT_FILETIME
-    Last Save Time/Date     PID_LASTSAVE_DTM    13  VT_FILETIME
-    Page Count              PID_PAGECOUNT       14  VT_I4
-    Word Count              PID_WORDCOUNT       15  VT_I4
-    Character Count         PID_CHARCOUNT       16  VT_I4
-    Creating Application    PID_APPNAME         18  VT_LPSTR
-    Security                PID_SECURITY        19  VT_I4
-
-=cut
 
 sub getProperty {
     my ($self, $propertyId) = @_;
@@ -117,26 +149,26 @@ sub getProperty {
 
         if ($sLen) {
             my $size = $sLen * 2; # length to UTF-16 size
-            
+
             $sValue = "\0" x $size;
             $self->{result} = $MsiSummaryInfoGetProperty->Call
                 ("$self->{handle}", $id, $type, $iValue, $fValue, $sValue, $sLen);
-                
+
             croak "Error code $self->{result} for Summary Stream property $propertyId"
                 if $self->{result};
-        
+
             # Now UTF-8 encoded, trim to $sLen
             $sValue = substr $sValue, 0, $sLen;
         } else {
             $sValue = '';
         }
-        
+
         return $sValue;
-        
+
     } elsif ($type eq 'VT_FILETIME') {
         croak "VT_FILETIME properties such as $propertyId are not currently Win32::MSI::HighLevel::Handled."
             if $self->{result} and $self->{result} != $ERROR_MORE_DATA;
-        
+
     } elsif ($type eq 'VT_I4' || $type eq 'VT_I2') {
         return $iValue;
     }
@@ -145,31 +177,31 @@ sub getProperty {
 
 sub setProperty {
     my ($self, $propertyId, $value) = @_;
-    
+
     croak "Invalid property for Summary Stream: $propertyId"
         unless exists $pidLookup {$propertyId};
-    
+
     my %typeLookup = (VT_I2 => 2, VT_I4 => 3, VT_FILETIME => 64, VT_LPSTR => 30);
     my ($id, $type) = @{$pidLookup {$propertyId}};
     my $iValue = 0;
     my $fValue = Win32::MSI::HighLevel::Handle->null ();
     my $sValue = '';
-    
+
     if ($type eq 'VT_I2' || $type eq 'VT_I2') {
         $iValue = $value;
 
     } elsif ($type eq 'VT_FILETIME') {
         croak "VT_FILETIME properties such as $propertyId are not currently Win32::MSI::HighLevel::Handled."
             if $self->{result} and $self->{result} != $ERROR_MORE_DATA;
-        
+
     } elsif ($type eq 'VT_LPSTR') {
         $sValue = $value;
     }
-    
+
     $type = $typeLookup{$type};
     $self->{result} = $MsiSummaryInfoSetProperty->Call
         ("$self->{handle}", $id, $type, $iValue, $fValue, $sValue);
-        
+
     croak "Error code $self->{result} for Summary Stream property $propertyId"
         if $self->{result};
 }
