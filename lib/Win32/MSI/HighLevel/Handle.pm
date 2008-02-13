@@ -7,7 +7,7 @@ Win32::MSI::HighLevel::Handle - Helper module for Win32::MSI::HighLevel.
 
 =head1 VERSION
 
-Version 1.0001
+Version 1.0002
 
 =head1 AUTHOR
 
@@ -28,7 +28,7 @@ LICENSE file included with this module.
 BEGIN {
     use Exporter ();
     use vars qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
-    $VERSION     = '1.0001';
+    $VERSION     = '1.0002';
     @ISA         = qw(Exporter);
     @EXPORT      = qw();
     @EXPORT_OK   = qw();

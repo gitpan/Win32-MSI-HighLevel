@@ -1,3 +1,5 @@
+use strict;
+use warnings;
 package Win32::MSI::HighLevel::ErrorTable;
 
 =head1 NAME
@@ -6,7 +8,7 @@ Win32::MSI::HighLevel::ErrorTable - Helper module for Win32::MSI::HighLevel.
 
 =head1 VERSION
 
-Version 1.0001
+Version 1.0002
 
 =head1 AUTHOR
 
@@ -27,7 +29,7 @@ LICENSE file included with this module.
 BEGIN {
     use Exporter ();
     use vars qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
-    $VERSION     = '1.0001';
+    $VERSION     = '1.0002';
     @ISA         = qw(Exporter);
     @EXPORT      = qw();
     @EXPORT_OK   = qw();
@@ -770,3 +772,5 @@ our %ErrMsgs = (
         'The patches in this list contain incorrect sequencing information: [2][3][4][5][6][7][8][9][10][11][12][13][14][15][16].',
     3002 => 'Patch [2] contains invalid sequencing information.',
     );
+
+1;

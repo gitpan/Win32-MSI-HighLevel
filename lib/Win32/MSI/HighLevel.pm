@@ -9,7 +9,7 @@ require 5.007003;    # for Digest::MD5
 BEGIN {
     use Exporter ();
     use vars qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
-    $VERSION     = '1.0001';
+    $VERSION     = '1.0002';
     @ISA         = qw(Exporter);
     @EXPORT      = qw();
     @EXPORT_OK   = qw();
@@ -31,7 +31,7 @@ use Win32::MSI::HighLevel::Record;
 use Win32::MSI::HighLevel::ErrorTable;
 use base qw(Win32::MSI::HighLevel::Handle Exporter);
 
-our $VERSION = "1.0001";
+our $VERSION = "1.0002";
 
 our @EXPORT_OK = qw(
     kMSIDBOPEN_READONLY kMSIDBOPEN_TRANSACT kMSIDBOPEN_DIRECT kMSIDBOPEN_CREATE
@@ -59,7 +59,7 @@ Win32::MSI::HighLevel - Perl wrapper for Windows Installer API
 
 =head1 VERSION
 
-Version 1.0001
+Version 1.0002
 
 =head1 SYNOPSIS
 
@@ -281,7 +281,7 @@ open existing file for direct (non-transacted) access
 
 =item Win32::MSI::HighLevel::Common::kMSIDBOPEN_CREATE
 
-create a new file for transacted access (see the L<commit member|commit> below)
+create a new file for transacted access (see L</commit> below)
 
 =item Win32::MSI::HighLevel::Common::kMSIDBOPEN_CREATEDIRECT
 
@@ -410,7 +410,7 @@ sub _errorMsg {
 Ensure that a list of tables exist. Create any tables in the list that do not
 exist already.
 
-This should be called after C<populateTables> has been called if you are not
+This should be called after L</populateTables> has been called if you are not
 dealing with a new .msi file.
 
 =cut
@@ -428,7 +428,7 @@ sub autovivifyTables {
 
 =head3 close
 
-Close the database. Generally C<close> is not required to be called explicitly
+Close the database. Generally L</close> is not required to be called explicitly
 as the database should close cleanly when the C<HighLevel> object is destroyed.
 
     $msi->close ();
@@ -444,7 +444,7 @@ sub close {
 
 =head3 commit
 
-C<commit> is used to update the database in transacted mode. Although the .msi
+L</commit> is used to update the database in transacted mode. Although the .msi
 database API provides a commit which B<must> be called in transacted mode, there
 doesn't seem to be anything like an explicit rollback! An implicit rollback
 happens when the database is closed without a commit however.
@@ -574,7 +574,7 @@ sub addCab {
 
 =head3 addComponent
 
-C<addComponent> adds a component associated with a specific Directory table
+L</addComponent> adds a component associated with a specific Directory table
 entry and a group of files.
 
     my $newId = $msi->addComponent (-Directory_ => 'wibble');
@@ -664,7 +664,7 @@ sub addComponent {
 
 =head3 addCreateFolder
 
-C<addCreateFolder> adds an entry to the create folder table for the given
+L</addCreateFolder> adds an entry to the create folder table for the given
 folder. Component and directory table entries will be generated as required.
 
     my $entry = $msi->addCreateFolder (-Folder => $dirPath);
@@ -757,7 +757,7 @@ sub addCustomAction {
 
 =head3 addDirectory
 
-C<addDirectory> adds a directory with a specified parent directory to the
+L</addDirectory> adds a directory with a specified parent directory to the
 directory table.
 
     my $entry = $msi->addDirectory (-Directory => $dir, -DefaultDir => $def, -Diretory_Parent => $parent);
@@ -842,18 +842,18 @@ sub addDirectory {
 
 =head3 addDirPath
 
-C<addDirPath> is not fully implemented should not be used. Use multiple calls
-to C<addDirectory> instead.
+L</addDirPath> is not fully implemented should not be used. Use multiple calls
+to L</addDirectory> instead.
 
 =cut
 
 #    my $root = $msi->addDirPath (-source => $rootDir, -target => $installDir);
 #
-#C<addDirPath> adds a directory tree rooted at C<-source> on the generating
-#machine. C<-source> must exist in the source machine when C<addDirPath> is
+#L</addDirPath> adds a directory tree rooted at C<-source> on the generating
+#machine. C<-source> must exist in the source machine when L</addDirPath> is
 #called.
 #
-#C<addDirPath> calls L<< C<addDirectory>|/"addDirectory" >> for each directory entry in
+#L</addDirPath> calls L</addDirectory> for each directory entry in
 #the tree rooted at C<-source>.
 #
 #A hash is returned where the keys are the identifiers generated to identify
@@ -864,9 +864,9 @@ to C<addDirectory> instead.
 #context.
 #
 #Note that should not be used to create directorys outside the install context.
-#Instead use C<addCreateDirectory>.
+#Instead use L</addCreateDirectory>.
 #
-#The following parameters are recognised by C<addDirPath>:
+#The following parameters are recognised by L</addDirPath>:
 #
 #=over 4
 #
@@ -965,7 +965,7 @@ configurations.
 
     my $root = $msi->addFeature (-name => 'Complete', -Title => 'Full install');
 
-The following parameters are recognised by C<addFeature>
+The following parameters are recognised by L</addFeature>
 
 =over 4
 
@@ -983,8 +983,8 @@ dialog.
 =item I<-Directory_>: optional
 
 Directory associated with the feature that may be configured by the user at
-install time. The directory must already have been added with C<addDirectory>,
-C<addDirPath> or C<createDirectory>.
+install time. The directory must already have been added with L</addDirectory>,
+L</addDirPath> or L</createDirectory>.
 
 =item I<-Display>: optional
 
@@ -1074,14 +1074,14 @@ sub addFeature {
 
 =head3 addFile
 
-C<addFile> is used to add a file to be installed. Adding a file associated with
+L</addFile> is used to add a file to be installed. Adding a file associated with
 a feature (or features) updates the File and DiskId tables and may update the
 Component, FeatureComponent and DuplicateFile tables.
 
     my $file = $msi->addFile (-source => $filepath, -featureId => 'Complete');
 
 Default values are determined for C<-Sequence> and C<-Version> from the source
-file which must be available when C<addFile> is called.
+file which must be available when L</addFile> is called.
 
 =over 4
 
@@ -1093,7 +1093,7 @@ the file is added to an internally generated cab file.
 If the file is to not to be compressed and stored internally in a cab file
 C<-cabFile> should be set to C<undef>.
 
-See also L</"createCabs">.
+See also L</createCabs>.
 
 =item I<-featureId>: required
 
@@ -1102,7 +1102,7 @@ Id of the Feature that the file is to be installed for.
 =item I<-fileName>: required
 
 Name of the file to be installed. Note that a long file name should be given:
-C<addFile> generates the required short file name.
+L</addFile> generates the required short file name.
 
 =item I<-forceNewComponent>: optional
 
@@ -1273,9 +1273,9 @@ sub addFile {
 
 =head3 addFiles
 
-C<addFiles> is not implemented. Use multiple calls to C<addFile> instead.
+L</addFiles> is not implemented. Use multiple calls to L</addFile> instead.
 
-There are design issues concerning the implemenation of C<addFiles> and the
+There are design issues concerning the implemenation of L</addFiles> and the
 management of components. A mechanism for handling exclusions should also be
 provided.
 
@@ -1474,14 +1474,14 @@ sub addLaunchCondition {
 }
 
 
-=head3 addMedia (see also L<setProperty>)
+=head3 addMedia (see also L</setProperty>)
 
 Add a cabinet file to the Media table.
 
     $msi->addMedia (-Cabinet => '#cab1', -DiskId => 1, -LastSequence => 20);
 
 If all the files required by the install are to be part of the .msi file then
-addMedia can be ignored - L<createCabs> does all the work required.
+addMedia can be ignored - L</createCabs> does all the work required.
 
 =over 4
 
@@ -1534,7 +1534,7 @@ sub addMedia {
 }
 
 
-=head3 addProperty (see also L<setProperty>)
+=head3 addProperty (see also L</setProperty>)
 
 Add a property value to the Property table. A new property id is generated based
 on the supplied id if a property of the same name exists already.
@@ -1729,7 +1729,7 @@ sub addRegLocator {
 
 =head3 addShortcut
 
-The following parameters are recognised by C<addShortcut>:
+The following parameters are recognised by L</addShortcut>:
 
 =over 4
 
@@ -1753,7 +1753,7 @@ The localizable description of the shortcut.
 =item I<-Directory_>: optional (see also C<-location>)
 
 The id for the Directory table entry which specifies where the shortcut file
-will be created. The Directory entry need not exist until C<writeTables> is
+will be created. The Directory entry need not exist until L</writeTables> is
 called and is not checked.
 
 One only of C<-location> and C<-Directory_> must be provided.
@@ -1770,15 +1770,15 @@ for the key, and the high-order byte contains modifier flags.
 =item I<-folderTarget>: optional (see also C<-target> and C<-Target>)
 
 The folder pointed to by the shortcut. Note that this folder must already have
-been provided using C<addDirectory>, C<addDirPath> or C<createDirectory>.
+been provided using L</addDirectory>, L</addDirPath> or L</createDirectory>.
 
 One only of C<-folderTarget>, C<-target> and C<-Target> must be provided.
 
 =item I<-location>: optional (see also C<-Directory_>)
 
 The directory where the shortcut file will be created. Note that the directory
-must already have been added with C<addDirectory>, C<addDirPath> or
-C<createDirectory>.
+must already have been added with L</addDirectory>, L</addDirPath> or
+L</createDirectory>.
 
 The directory provided will be searched for in the Directory table to find the
 directory id to be used for C<-Directory_>.
@@ -1813,7 +1813,7 @@ One only of C<-folderTarget>, C<-target> and C<-Target> must be provided.
 =item I<-target>: optional (see also C<-folderTarget> and C<-Target>)
 
 The file pointed to by the shortcut. Note that this file must already have been
-provided using C<addFile> or C<addFiles>.
+provided using L</addFile> or L</addFiles>.
 
 One only of C<-folderTarget>, C<-target> and C<-Target> must be provided.
 
@@ -1903,20 +1903,20 @@ sub addShortcut {
 =head3 createCabs
 
 Creates the cab files as required from the files that have been added with
-L</"addFile"> or L</"addFiles">.
+L</addFile> or L</addFiles>.
 
     $msi->createCabs ();
 
-Note that C<createCabs> must be called after all files have been added and
-before L</"writeTables"> is called.
+Note that L</createCabs> must be called after all files have been added and
+before L</writeTables> is called.
 
 Note too that makecab.exe must be available on the system being used. With
 versions of Windows from Windows 2000 on makecab.exe seems to be provided with
-the system so this should not generally be an issue. If C<createCabs> generates
+the system so this should not generally be an issue. If L</createCabs> generates
 a 'makecabs.exe not found' error copy makecabs.exe into the working directory or
 add the path to makecabs.exe to the PATH environment variable.
 
-C<createCabs> updated the C<Media> table as appropriate.
+L</createCabs> updated the C<Media> table as appropriate.
 
 =cut
 
@@ -2001,6 +2001,16 @@ Creates a new database table.
             ]
         );
 
+C<createTable> knows the column specification for the following commonly used
+tables: C<AppSearch, Binary, Component, CustomAction, Directory , Extension,
+Feature, FeatureComponents, File, Icon, LaunchCondition, Media,
+MsiDriverPackages, Property, ProgId, RegLocator, Shortcut, Verb>.
+
+Any other tables must be created by providing a suitable I<-columnSpec>
+parameter. If there are tables that you use regularly that are not included in
+the list above contact the module maintainer with the column specification and
+suggest that it be added.
+
 =over 4
 
 =item I<-columnSpec>: optional
@@ -2023,13 +2033,15 @@ Most of the types mentioned in the MSDN documentation are recognised, including:
 
 =item Directory: CHAR(72)
 
-=item FileName: CHAR(128) LOCALIZABLE
+=item Filename: CHAR(128) LOCALIZABLE
 
 =item Formatted: CHAR(255)
 
 =item Identifier: CHAR(38)
 
 =item Integer: INT
+
+=item Language: CHAR(20)
 
 =item Long: LONG
 
@@ -2042,6 +2054,8 @@ Most of the types mentioned in the MSDN documentation are recognised, including:
 =item Text: CHAR(255) LOCALIZABLE
 
 =item UpperCase: CHAR(255)
+
+=item Version: CHAR(72)
 
 =back
 
@@ -2069,12 +2083,13 @@ sub createTable {
         DefaultDir    => 'CHAR(255)',
         Directory     => 'CHAR(72)',
         DoubleInteger => 'LONG',
-        FileName      => 'CHAR(128) LOCALIZABLE',
+        Filename      => 'CHAR(128) LOCALIZABLE',
         Formatted     => 'CHAR(255)',
         GUID          => 'CHAR(38)',
         Identifier    => 'CHAR(38)',
         Integer       => 'INT',
         KeyPath       => 'CHAR(255)',
+        Language      => 'CHAR(20)',
         Long          => 'LONG',
         Property      => 'CHAR(32)',
         RegPath       => 'CHAR(255)',
@@ -2082,6 +2097,7 @@ sub createTable {
         Shortcut      => 'CHAR(255)',
         Text          => 'CHAR(255) LOCALIZABLE',
         UpperCase     => 'CHAR(255)',
+        Version       => 'CHAR(72)',
         );
     my %columnSpecs = (
         AppSearch => [
@@ -2093,12 +2109,12 @@ sub createTable {
             Data => [qw(Binary Required)]
             ],
         Component => [
-            Component   => [qw(Key Identifier Required)],
+            Component   => [qw(Key Identifier(72) Required)],
             ComponentId => 'GUID',
             Directory_  => [qw(Directory Required)],
-            Attributes  => [qw(Identifier Required)],
+            Attributes  => [qw(Integer Required)],
             Condition   => [qw(Condition)],
-            KeyPath     => [qw(KeyPath)],
+            KeyPath     => [qw(KeyPath(72))],
             ],
         CustomAction => [
             Action => [qw(Identifier Key Required)],
@@ -2127,6 +2143,20 @@ sub createTable {
             Level          => [qw(Integer Required)],
             Directory_     => 'Directory',
             Attributes     => [qw(Integer Required)],
+            ],
+        FeatureComponents => [
+            Feature_   => [qw(Key Identifier Required)],
+            Component_ => [qw(Key Identifier Required)],
+            ],
+        File => [
+            File   => [qw(Key Identifier Required)],
+            Component_ => [qw(Identifier Required)],
+            FileName => [qw(Filename Required)],
+            FileSize => [qw(DoubleInteger Required)],
+            Version => [qw(Version)],
+            Language => [qw(Language)],
+            Attributes => [qw(Integer)],
+            Sequence => [qw(Integer Required)],
             ],
         Icon => [
             Name => [qw(Identifier(32) Key Required)],
@@ -2171,7 +2201,7 @@ sub createTable {
         Shortcut => [
             Shortcut               => [qw(Key Identifier Required)],
             Directory_             => [qw(Identifier Required)],
-            Name                   => [qw(FileName Required)],
+            Name                   => [qw(Filename Required)],
             Component_             => [qw(Identifier Required)],
             Target                 => [qw(Directory Required)],
             Arguments              => 'Formatted',
@@ -2284,7 +2314,7 @@ folders resolved by examining Directory table entries.
 
     my $path = expandPath ($filePath);
 
-C<expandPath> returns a long path.
+L</expandPath> returns a long path.
 
 =cut
 
@@ -2326,7 +2356,7 @@ Saves a database table in a .csv file format.
 
     my $table = $msi->exportTable ('Directory', '.\Tables');
 
-Important! You must C<writeTables> before calling C<exportTable> to ensure that
+Important! You must L</writeTables> before calling L</exportTable> to ensure that
 the database version of the table matches the internal cached version.
 
 The sample code would export the Directory table as the file 'Directory.idt' to
@@ -2343,7 +2373,7 @@ Summary Information Stream.
 Also note that the exported file format is ideal for management using a revision
 control system.
 
-See also L<importTable>.
+See also L</importTable>.
 
 =cut
 
@@ -2508,11 +2538,11 @@ Return a reference to the table column data for a given table entry.
 
 Returns undef if the table or key doesn't exist.
 
-If fields within the $entry hash ref are edited L<updateTableEntry> must be called.
+If fields within the $entry hash ref are edited L</updateTableEntry> must be called.
 
 A degree of caution is advised in using this member. Very little checking can
 be performed on the results of editing the hash returned. Generally errors will
-result in failures at L<writeTables> time.
+result in failures at L</writeTables> time.
 
 =cut
 
@@ -2530,7 +2560,7 @@ sub getTableEntry {
 
 =head3 getTargetDirID targetpath [public]
 
-C<getTargetDirID> returns a Directory table id given an install time target file
+L</getTargetDirID> returns a Directory table id given an install time target file
 path. Entries in the Directroy table will be created as required to generate an
 appropriate id.
 
@@ -2544,7 +2574,7 @@ target install directory (TARGETDIR).
 Where existing Directory table entries match a given path prefix the existing
 entries are used to reduce proliferation of table entries.
 
-C<getTargetDirID> generally takes a single unnamed parameter which is the
+L</getTargetDirID> generally takes a single unnamed parameter which is the
 install time (target) path to match.
 
 Note that the paths may use either \ or / delimiters. All path components are
@@ -2672,17 +2702,23 @@ sub haveDirId {
 
 Imports an exported database table in a .csv file format.
 
-    my $table = $msi->importTable ('Directory', '.\Tables');
+    my $table = $msi->importTable ('.\Tables', 'Directory');
 
     $msi->writeTables ();
     $msi->populateTables ();
 
-Important! You should C<writeTables> and then C<populateTables> following
-calling C<importTable> to ensure the cached table information matches the
+Important! You should L</writeTables> and then L</populateTables> following
+calling L</importTable> to ensure the cached table information matches the
 database version.
 
 The sample code would import the Directory table from the file 'Directory.idt'
 in the Tables sub-directory of current working directory.
+
+C<importTable> will create an absolute path from the folder path passed in as
+the second parameter.
+
+undef will be returned on success and an error string will be returned on
+failure.
 
 Note that the table name _SummaryInformation may be used to import the
 Summary Information Stream.
@@ -2697,7 +2733,11 @@ sub importTable {
     #define ERROR_INVALID_HANDLE_STATE  1609L
     #define ERROR_INVALID_PARAMETER          87L
 
-    return $MsiDatabaseImport->Call ($self->{handle}, $table, $path);
+    $path = File::Spec->rel2abs ($path);
+    my $result = $MsiDatabaseImport->Call ($self->{handle}, $path, "$table.idt");
+
+    return undef unless $result;
+    return _errorMsg ();
 }
 
 
@@ -3013,7 +3053,7 @@ sub setProduct {
 }
 
 
-=head3 setProperty (see also C<addProperty>)
+=head3 setProperty (see also L</addProperty>)
 
 Set a property value in the Property table. The property is added if it didn't
 exist already.
@@ -3071,7 +3111,7 @@ fields.
 
 Note that this method provides fairly raw access to table entries and does not
 perform very much validation. In particular fields that are linked to other
-tables should not be altered using C<setTableEntryField>!
+tables should not be altered using L</setTableEntryField>!
 
 =cut
 
@@ -3155,7 +3195,7 @@ sub view {
 Write changes that have been made to the tables using the add* members. Until
 writeTables is called the changes that have been made are cached in memory.
 writeTables writes these changes through to the .msi database in preparation for
-a L</"commit">.
+a L</commit>.
 
 =cut
 

@@ -8,3 +8,10 @@ Revision history for Perl module Win32::MSI::HighLevel
         reported by CPAN testers)
     - Cleaned various sillynesses in HighLevel.pm POD
     - Added POD to helper modules
+
+1.0002 Thu Feb 07 19:14:00 2008
+    - Added strictures to ErrorTable.pm
+    - Fixed parameter order and handling for Win32::MSI::HighLevel::importTable
+    - Added Test::Pod::Coverage and Test::Pod to prerequisites (used by tests)
+    - Added complete installer sample script
+    - Fixed omitted errorMsg -> _errorMsg in various places

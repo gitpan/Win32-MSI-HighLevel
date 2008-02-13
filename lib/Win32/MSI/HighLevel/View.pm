@@ -7,7 +7,7 @@ Win32::MSI::HighLevel::View - Helper module for Win32::MSI::HighLevel.
 
 =head1 VERSION
 
-Version 1.0001
+Version 1.0002
 
 =head1 AUTHOR
 
@@ -28,7 +28,7 @@ LICENSE file included with this module.
 BEGIN {
     use Exporter ();
     use vars qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
-    $VERSION     = '1.0001';
+    $VERSION     = '1.0002';
     @ISA         = qw(Exporter);
     @EXPORT      = qw();
     @EXPORT_OK   = qw();
@@ -70,7 +70,7 @@ sub new {
     $params{result} = $MsiDatabaseOpenView->Call
         ($highLevel->{handle}, $params{query}, $hdl);
 
-    croak Win32::MSI::HighLevel::errorMsg ($highLevel)
+    croak Win32::MSI::HighLevel::_errorMsg ($highLevel)
         if $params{result};
 
     my $self = $class->SUPER::new ($hdl, %params, highLevel => $highLevel);
@@ -78,7 +78,7 @@ sub new {
     $hdl = Win32::MSI::HighLevel::Handle->null ();
     $self->{result} = $MsiViewExecute->Call ($self->{handle}, 0);
 
-    croak Win32::MSI::HighLevel::errorMsg ($self, $self->{result})
+    croak Win32::MSI::HighLevel::_errorMsg ($self, $self->{result})
         if $self->{result};
 
     return $self;
@@ -108,7 +108,7 @@ sub fetch {
 
     $params{result} = $MsiViewFetch->Call ($self->{handle}, $hdl);
     return undef if $params{result} == $ERROR_NO_MORE_ITEMS;
-    croak Win32::MSI::HighLevel::errorMsg ($self)
+    croak Win32::MSI::HighLevel::_errorMsg ($self)
         if $params{result};
 
     ++$self->{fetched};
@@ -180,7 +180,7 @@ sub getColumnInfo {
     # Get the names and field (column) count
     $self->{result} = $MsiViewGetColumnInfo->Call
         ($self->{handle}, Win32::MSI::HighLevel::Common::kMSICOLINFO_NAMES, $hdl);
-    croak Win32::MSI::HighLevel::errorMsg ($self)
+    croak Win32::MSI::HighLevel::_errorMsg ($self)
         if $self->{result};
 
     my $colRec = Win32::MSI::HighLevel::Record->fromHandle ($hdl, $self);
@@ -200,7 +200,7 @@ sub getColumnInfo {
     # Get the types
     $self->{result} = $MsiViewGetColumnInfo->Call
         ($self->{handle}, Win32::MSI::HighLevel::Common::kMSICOLINFO_TYPES, $hdl);
-    croak Win32::MSI::HighLevel::errorMsg ($self)
+    croak Win32::MSI::HighLevel::_errorMsg ($self)
         if $self->{result};
 
     $colRec = Win32::MSI::HighLevel::Record->fromHandle ($hdl, $self);

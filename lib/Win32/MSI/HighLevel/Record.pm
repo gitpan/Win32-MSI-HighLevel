@@ -8,7 +8,7 @@ Win32::MSI::HighLevel::Record - Helper module for Win32::MSI::HighLevel.
 
 =head1 VERSION
 
-Version 1.0001
+Version 1.0002
 
 =head1 AUTHOR
 
@@ -29,7 +29,7 @@ LICENSE file included with this module.
 BEGIN {
     use Exporter ();
     use vars qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
-    $VERSION     = '1.0001';
+    $VERSION     = '1.0002';
     @ISA         = qw(Exporter);
     @EXPORT      = qw();
     @EXPORT_OK   = qw();
@@ -231,7 +231,7 @@ sub getStream {
     }
     close $StreamOut;
 
-    croak Win32::MSI::HighLevel::errorMsg ($self)
+    croak Win32::MSI::HighLevel::_errorMsg ($self)
         if $self->{result} and $self->{result} != $ERROR_MORE_DATA;
 
     $self->{state} ||= kClean;
@@ -261,7 +261,7 @@ sub setStream {
 
     $self->{result} =
         $MsiRecordSetStream->Call ($self->{handle}, $column, $value);
-    croak Win32::MSI::HighLevel::errorMsg ($self)
+    croak Win32::MSI::HighLevel::_errorMsg ($self)
         if $self->{result};
 
     $self->{state} ||= 0;
@@ -292,7 +292,7 @@ sub uncheckedString {
     $self->{result} =
         $MsiRecordGetString->Call ("$self->{handle}", $column,
         $self->{"\#$column"}, $length);
-    croak Win32::MSI::HighLevel::errorMsg ($self, $self->{result})
+    croak Win32::MSI::HighLevel::_errorMsg ($self, $self->{result})
         if $self->{result} and $self->{result} != $ERROR_MORE_DATA;
 
     return $self->{"\#$column"} if !$self->{result};
@@ -349,7 +349,7 @@ sub setString {
     $self->{result} =
         $MsiRecordSetString->Call ($self->{handle}, $column, $value)
         unless !defined $value;
-    croak Win32::MSI::HighLevel::errorMsg ($self)
+    croak Win32::MSI::HighLevel::_errorMsg ($self)
         if $self->{result} and $self->{result} != $ERROR_MORE_DATA;
 
     $self->{state} ||= 0;
@@ -405,7 +405,7 @@ sub setInteger {
     $self->{result} =
         $MsiRecordSetInteger->Call ($self->{handle}, $column, $value)
         unless !defined $value;
-    croak Win32::MSI::HighLevel::errorMsg ($self)
+    croak Win32::MSI::HighLevel::_errorMsg ($self)
         if $self->{result} and $self->{result} != $ERROR_MORE_DATA;
 
     $self->{state} ||= 0;
@@ -425,7 +425,7 @@ sub update {
     $self->{result} =
         $MsiViewModify->Call ($self->{view}{handle}, kMSIMODIFY_UPDATE,
         $self->{handle});
-    croak Win32::MSI::HighLevel::errorMsg ($self) if $self->{result};
+    croak Win32::MSI::HighLevel::_errorMsg ($self) if $self->{result};
     $self->{state} = kClean;
 }
 
@@ -437,7 +437,9 @@ sub insert {
     $self->{result} =
         $MsiViewModify->Call ($self->{view}{handle}, kMSIMODIFY_INSERT,
         $self->{handle});
-    croak Win32::MSI::HighLevel::errorMsg ($self) if $self->{result};
+    croak "For table '$self->{view}{-table}':\n"
+        . Win32::MSI::HighLevel::_errorMsg ($self)
+        if $self->{result};
     $self->{state} = kClean;
 }
 

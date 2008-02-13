@@ -7,7 +7,7 @@ Win32::MSI::HighLevel::Summary - Helper module for Win32::MSI::HighLevel.
 
 =head1 VERSION
 
-Version 1.0001
+Version 1.0002
 
 =head1 AUTHOR
 
@@ -28,7 +28,7 @@ LICENSE file included with this module.
 BEGIN {
     use Exporter ();
     use vars qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
-    $VERSION     = '1.0001';
+    $VERSION     = '1.0002';
     @ISA         = qw(Exporter);
     @EXPORT      = qw();
     @EXPORT_OK   = qw();
@@ -87,8 +87,10 @@ sub new {
     $params{result} = $MsiGetSummaryInformation->Call
         ($highLevel->{handle}, 0, 19, $hdl);
 
-    croak Win32::MSI::HighLevel::errorMsg ($highLevel)
+    croak Win32::MSI::HighLevel::_errorMsg ($highLevel)
         if $params{result};
+
+    $params{_typeLookup} = {VT_I2 => 2, VT_I4 => 3, VT_FILETIME => 64, VT_LPSTR => 30};
 
     return $class->SUPER::new ($hdl, %params, highLevel => $highLevel);
 }
@@ -144,7 +146,8 @@ sub getProperty {
     croak "Error code $self->{result} for Summary Stream property $propertyId"
         if $self->{result} and $self->{result} != $ERROR_MORE_DATA;
 
-    if ($type eq 'VT_LPSTR') {
+    $type = unpack ('l', $type);
+    if ($type eq $self->{_typeLookup}{VT_LPSTR}) {
         $sLen = unpack ("l", $sLen);
 
         if ($sLen) {
@@ -169,7 +172,7 @@ sub getProperty {
         croak "VT_FILETIME properties such as $propertyId are not currently Win32::MSI::HighLevel::Handled."
             if $self->{result} and $self->{result} != $ERROR_MORE_DATA;
 
-    } elsif ($type eq 'VT_I4' || $type eq 'VT_I2') {
+    } elsif ($type eq $self->{_typeLookup}{VT_I4} || $type eq $self->{_typeLookup}{VT_I2}) {
         return $iValue;
     }
 }
@@ -181,7 +184,6 @@ sub setProperty {
     croak "Invalid property for Summary Stream: $propertyId"
         unless exists $pidLookup {$propertyId};
 
-    my %typeLookup = (VT_I2 => 2, VT_I4 => 3, VT_FILETIME => 64, VT_LPSTR => 30);
     my ($id, $type) = @{$pidLookup {$propertyId}};
     my $iValue = 0;
     my $fValue = Win32::MSI::HighLevel::Handle->null ();
@@ -198,7 +200,7 @@ sub setProperty {
         $sValue = $value;
     }
 
-    $type = $typeLookup{$type};
+    $type = $self->{_typeLookup}{$type};
     $self->{result} = $MsiSummaryInfoSetProperty->Call
         ("$self->{handle}", $id, $type, $iValue, $fValue, $sValue);
 

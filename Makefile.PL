@@ -9,5 +9,7 @@ WriteMakefile(
     ABSTRACT     => 'Perl wrapper for Windows Installer API',
     PREREQ_PM    => {
         'Win32::API' => 0.46,
+        'Test::Pod::Coverage' => 0,
+        'Test::Pod' => 0,
     },
 );

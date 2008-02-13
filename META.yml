@@ -1,11 +1,16 @@
-# http://module-build.sourceforge.net/META-spec.html
-#XXXXXXX This is a prototype!!!  It will change in the future!!! XXXXX#
-name:         Win32-MSI-HighLevel
-version:      1.0001
-version_from: lib/Win32/MSI/HighLevel.pm
-installdirs:  site
-requires:
+--- #YAML:1.0
+name:                Win32-MSI-HighLevel
+version:             1.0002
+abstract:            Perl wrapper for Windows Installer API
+license:             ~
+author:              
+    - Peter Jaquiery (grandpa@cpan.org)
+generated_by:        ExtUtils::MakeMaker version 6.42
+distribution_type:   module
+requires:     
+    Test::Pod:                     0
+    Test::Pod::Coverage:           0
     Win32::API:                    0.46
-
-distribution_type: module
-generated_by: ExtUtils::MakeMaker version 6.30
+meta-spec:
+    url:     http://module-build.sourceforge.net/META-spec-v1.3.html
+    version: 1.3
