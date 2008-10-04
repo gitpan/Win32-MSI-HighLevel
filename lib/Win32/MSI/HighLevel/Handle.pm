@@ -7,7 +7,7 @@ Win32::MSI::HighLevel::Handle - Helper module for Win32::MSI::HighLevel.
 
 =head1 VERSION
 
-Version 1.0002
+Version 1.0003
 
 =head1 AUTHOR
 
@@ -28,7 +28,7 @@ LICENSE file included with this module.
 BEGIN {
     use Exporter ();
     use vars qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
-    $VERSION     = '1.0002';
+    $VERSION     = '1.0003';
     @ISA         = qw(Exporter);
     @EXPORT      = qw();
     @EXPORT_OK   = qw();
@@ -41,9 +41,12 @@ package Win32::MSI::HighLevel::Handle;
 use Win32::API;
 use Win32::MSI::HighLevel::Common;
 use Carp;
+#use Devel::StackTrace;
+
+use constant kDebug => 0;
 
 my $MsiCloseHandle = Win32::MSI::HighLevel::Common::_def(MsiCloseHandle => "I");
-my $handleCount;
+my %handleCheck;
 
 sub new {
     my ($type, $hdl, %params) = @_;
@@ -52,9 +55,16 @@ sub new {
     croak "Internal error: handle required as first parameter to Handle->new"
         unless defined $hdl;
 
+    if (exists $handleCheck{$hdl}) {
+        croak "Reusing handle";
+    }
+
     $params{class} = $class;
     $params{handle} = $hdl =~ /^\d+$/ ? $hdl : unpack ("l", $hdl);
-    ++$handleCount;
+    $handleCheck{$params{handle}} = [
+        #Devel::StackTrace->new ()->as_string (),
+        {%params}
+        ];
     return bless \%params, $class;
 }
 
@@ -62,14 +72,16 @@ sub new {
 sub DESTROY {
     my $self = shift;
 
-    if ($self->{handle}) {
-        $self->{result} = $MsiCloseHandle->Call ($self->{handle});
-        croak "Failed with error code $self->{result}"
-            if $self->{result};
-        --$handleCount;
+    croak "Destroying null handle" unless $self->{handle};
+    unless (exists $handleCheck{$self->{handle}}) {
+        croak "handleCheck entry $self->{handle} missing";
     }
 
-    $self->{handle} = 0;
+    $self->{result} = $MsiCloseHandle->Call ($self->{handle});
+    croak "Failed with error code $self->{result}" if $self->{result};
+    $handleCheck{$self->{handle}} = undef;
+    delete $handleCheck{$self->{handle}};
+    $self->{handle} = undef;
 }
 
 
@@ -78,7 +90,12 @@ sub null {
 }
 
 END {
-    die "Handle leak detected: $handleCount handles" if $handleCount;
+    for my $leaked (values %handleCheck) {
+        my $warning = "\nLeaked $leaked->[1]{class} object";
+
+        #$warning .= " created at: \n$leaked->[0]";
+        warn "$warning\n\n";
+    }
 }
 
 1;

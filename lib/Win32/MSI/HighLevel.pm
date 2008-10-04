@@ -9,7 +9,7 @@ require 5.007003;    # for Digest::MD5
 BEGIN {
     use Exporter ();
     use vars qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
-    $VERSION     = '1.0002';
+    $VERSION     = '1.0003';
     @ISA         = qw(Exporter);
     @EXPORT      = qw();
     @EXPORT_OK   = qw();
@@ -31,7 +31,7 @@ use Win32::MSI::HighLevel::Record;
 use Win32::MSI::HighLevel::ErrorTable;
 use base qw(Win32::MSI::HighLevel::Handle Exporter);
 
-our $VERSION = "1.0002";
+our $VERSION = "1.0003";
 
 our @EXPORT_OK = qw(
     kMSIDBOPEN_READONLY kMSIDBOPEN_TRANSACT kMSIDBOPEN_DIRECT kMSIDBOPEN_CREATE
@@ -50,6 +50,14 @@ our @EXPORT_OK = qw(
 
     msidbLocatorTypeDirectory msidbLocatorTypeFileName
     msidbLocatorTypeRawValue msidbLocatorType64bit
+
+    msidbUpgradeAttributesMigrateFeatures
+    msidbUpgradeAttributesOnlyDetect
+    msidbUpgradeAttributesIgnoreRemoveFailure
+    msidbUpgradeAttributesVersionMinInclusive
+    msidbUpgradeAttributesVersionMaxInclusive
+    msidbUpgradeAttributesLanguagesExclusive
+
     );
 
 
@@ -59,7 +67,7 @@ Win32::MSI::HighLevel - Perl wrapper for Windows Installer API
 
 =head1 VERSION
 
-Version 1.0002
+Version 1.0003
 
 =head1 SYNOPSIS
 
@@ -157,6 +165,13 @@ use constant msidbLocatorTypeDirectory => 0;
 use constant msidbLocatorTypeFileName  => 1;
 use constant msidbLocatorTypeRawValue  => 2;
 use constant msidbLocatorType64bit     => 16;
+
+use constant msidbUpgradeAttributesMigrateFeatures     =>    1;
+use constant msidbUpgradeAttributesOnlyDetect          =>    2;
+use constant msidbUpgradeAttributesIgnoreRemoveFailure =>    4;
+use constant msidbUpgradeAttributesVersionMinInclusive =>  256;
+use constant msidbUpgradeAttributesVersionMaxInclusive =>  512;
+use constant msidbUpgradeAttributesLanguagesExclusive  => 1024;
 
 my $MsiOpenDatabase =
     Win32::MSI::HighLevel::Common::_def (MsiOpenDatabase => "PPP");
@@ -303,6 +318,11 @@ C<-sourceRoot> defaults to the cwd.
 Provide the default (absolute) target directory for the install. Note that the
 actual location can be set at install time by the user.
 
+=item I<-workRoot>: optional
+
+Provide the path to a scratch location that can be used to create intermediate
+files and folders during the installer build process.
+
 =back
 
 =cut
@@ -313,10 +333,13 @@ sub new {
     my $hdl = Win32::MSI::HighLevel::Handle->null ();
 
     Win32::MSI::HighLevel::Common::require (\%params, qw(-file));
-    Win32::MSI::HighLevel::Common::allow (\%params, qw(-file -mode -sourceRoot -targetRoot));
+    Win32::MSI::HighLevel::Common::allow
+        (\%params, qw(-file -mode -workRoot -sourceRoot -targetRoot));
     $params{-mode} ||= Win32::MSI::HighLevel::Common::kMSIDBOPEN_TRANSACT;
     $params{-file} =
         File::Spec->canonpath (File::Spec->rel2abs ($params{-file}));
+
+    $params{-workRoot} = $params{-sourceRoot} unless exists $params{-workRoot};
 
     if ($params{-mode} =~ /^\d+$/) {
         $params{result} =
@@ -334,6 +357,31 @@ sub new {
     $params{nextSeqNum}    = 1;
     $params{usedSeqNum}    = {};
     $params{highestSeqNum} = $params{nextSeqNum};
+
+    $params{knownTables} = {
+        AppSearch              => \&_addAppSearchRow,
+        Binary                 => \&_addBinaryRow,
+        Component              => \&_addComponentRow,
+        Condition              => \&_addConditionRow,
+        Control                => \&_addControlRow,
+        ControlEvent           => \&_addControlEventRow,
+        CreateFolder           => \&_addCreateFolderRow,
+        CustomAction           => \&_addCustomActionRow,
+        Dialog                 => \&_addDialogRow,
+        Directory              => \&_addDirectoryRow,
+        Feature                => \&_addFeatureRow,
+        FeatureComponents      => \&_addFeatureComponentsRow,
+        File                   => \&_addFileRow,
+        Icon                   => \&_addIconRow,
+        InstallExecuteSequence => \&_addInstallExecuteSequenceRow,
+        InstallUISequence      => \&_addInstallUISequenceRow,
+        Media                  => \&_addMediaRow,
+        Property               => \&_addPropertyRow,
+        Registry               => \&_addRegistryRow,
+        RegLocator             => \&_addRegLocatorRow,
+        Shortcut               => \&_addShortcutRow,
+        Upgrade                => \&_addUpgradeRow,
+        };
 
     return $class->SUPER::new ($hdl, %params);
 }
@@ -372,7 +420,10 @@ sub _errorMsg {
 
     $MsiFormatRecord->Call (0, $errRec->{handle}, $msg, $length);
     $length = unpack ("l", $length);
-    return '' unless $length++;
+    unless ($length++) {
+        $errCode = 0;
+        return '';
+    }
 
     my $size = $length * 2;    # length to UTF-16 siez
 
@@ -382,9 +433,9 @@ sub _errorMsg {
     # Now UTF-8 encoded, trim to $length
     $msg = substr $msg, 0, $length;
     $msg =~ s/\0/\n/g;
-    my %params = map { chomp; s/\s+$//; $_ }
-        grep { defined and length }
-        split /(\d+):\s+/, $msg;
+
+    my %params = map { chomp; s/\s+$//; defined $_ ? $_ : ''}
+        $msg =~ /(\d+):\s+(.*?)(?=\d+:|$)/g;
 
     return
         "see Microsoft Windows SDK documentation for 'Windows Installer Error Messages'. Params are: $msg"
@@ -419,7 +470,7 @@ sub autovivifyTables {
     my ($self, @tables) = @_;
 
     for my $table (@tables) {
-        next if exists $self->{tables}{$table};
+        next if exists $self->{tables}{$table} or _readonlyTable ($table);
 
         $self->createTable (-table => $table);
     }
@@ -478,9 +529,6 @@ signature.
 =item I<-Signature_>: required
 
 An entry into the Signature table (for a file) or a directory name.
-
-Note that support is not currently provided for adding an entry to the Signature
-table!
 
 =back
 
@@ -561,7 +609,7 @@ sub addCab {
     Win32::MSI::HighLevel::Common::allow (\%params,
         qw(-name -file -disk -lastSeq));
 
-    $self->_addRow ('Cabs', '-Name',
+    $self->_addRow ('Cabs', 'Name',
         {-Name => $params{-name}, -Data => $params{-file}},);
 
     $self->addMedia (
@@ -659,6 +707,20 @@ sub addComponent {
             {lc "$cParams{-Component}/$featureId"};
     }
 
+    if (! defined $cParams{-KeyPath} or ! length $cParams{-KeyPath}) {
+        _genLu (\%cParams, 'CreateFolder');
+
+        if (! exists $self->{tables}{CreateFolder}{$cParams{-lu}}) {
+            # Need to add a CreateFolder table entry
+            my %cfParams = (
+                -Directory_ => $params{-Directory_},
+                -Component_ => $component,
+            );
+
+            $self->_addCreateFolderRow (\%cfParams);
+        }
+    }
+
     return $cParams{-Component};
 }
 
@@ -667,11 +729,11 @@ sub addComponent {
 L</addCreateFolder> adds an entry to the create folder table for the given
 folder. Component and directory table entries will be generated as required.
 
-    my $entry = $msi->addCreateFolder (-Folder => $dirPath);
+    my $entry = $msi->addCreateFolder (-folderPath => $dirPath);
 
 =over 4
 
-=item I<-FolderPath>: required
+=item I<-folderPath>: required
 
 Path name of the folder to create on the target system.
 
@@ -731,11 +793,11 @@ Id for the custom action.
 
 A number comprised of various bit flags ored together.
 
-=item I<-Source>: required
+=item I<-Source>: optional
 
 A property name or external key into another table. This depends on the Type.
 
-=item I<-Target>: required
+=item I<-Target>: optional
 
 Additional information depending on the Type.
 
@@ -747,10 +809,126 @@ sub addCustomAction {
     my ($self, %params) = @_;
 
     Win32::MSI::HighLevel::Common::require (\%params,
-        qw(-Action -Type -Source -Target));
+        qw(-Action -Type));
     Win32::MSI::HighLevel::Common::allow (\%params,
         qw(-Action -Type -Source -Target));
 
+    return $self->_addCustomActionRow (\%params);
+}
+
+
+=head3 addCustomActionJScriptFragment
+
+Add an inline JScript entry to the custom action table.
+
+    $msi->addCustomActionJScriptFragment (
+        -Action => 'GetName',
+        -script => '["TheName"] = ["Path"].match (/".*\\(.*)/)[1]'
+    );
+
+This adds a JScript custom action row.
+
+=over 4
+
+=item I<-Action>: required
+
+Id for the custom action.
+
+=item I<-script>: required
+
+The JScript to execute.
+
+["..."] is expanded to Session.Property ("...")
+
+The expanded string must be 255 characters or fewer. It may be
+multiple statements and may contain multiple lines. Line breaks will be removed
+however.
+
+=back
+
+=cut
+
+sub addCustomActionJScriptFragment {
+    my ($self, %params) = @_;
+
+    Win32::MSI::HighLevel::Common::require (\%params,
+        qw(-Action -script));
+    Win32::MSI::HighLevel::Common::allow (\%params,
+        qw(-Action -script));
+
+    $params{-script} =~ s/\[("\w+")\]/Session.Property ($1)/g;
+    $params{-script} =~ s/[\n\r]\s*//g;
+
+    croak "JScript must be 255 characters or fewer!"
+        unless length ($params{-script}) < 256;
+    $params{-Target} = $params{-script};
+    $params{-Type} = 37;
+
+    return $self->_addCustomActionRow (\%params);
+}
+
+
+=head3 addCustomActionJScriptFile
+
+Add JScript entry to the custom action table.
+
+    $msi->addCustomActionJScriptFile (
+       -Action => 'GetRegString',
+       -call => '["AppRelVers"] = CmpVersion ("foo.exe", "1.0.3");'
+       -file => 'vercheck.js',
+       );
+
+This adds a JScript custom action row.
+
+=over 4
+
+=item I<-Action>: required
+
+Id for the custom action.
+
+=item I<-call>: optional
+
+A fragment (255 characters or fewer) of JScript to be executed after the
+script has been loaded.
+
+Watch out for \ characters in file paths. You will need \\\\ to get a single
+\ in a quoted string by the time Perl has changed \\\\ to \\ then JScript
+changes \\ to \.
+
+-item I<-file>: required
+
+Name of the file containing the script to be processed.
+
+=back
+
+=cut
+
+sub addCustomActionJScriptFile {
+    my ($self, %params) = @_;
+
+    Win32::MSI::HighLevel::Common::require (\%params,
+        qw(-Action -file));
+    Win32::MSI::HighLevel::Common::allow (\%params,
+        qw(-Action -call -file));
+
+    (my $cleanFile = $params{-file}) =~ s/\W//g;
+    my $key;
+
+    $self->_haveUniqueId ($cleanFile, 'CustomAction', 'Script', $key);
+    $self->addBinaryFile (-Name => $key, -file => $params{-file})
+        unless exists $self->{tables}{Binary}{$key};
+
+    if (exists $params{-call}) {
+        $params{-call} =~ s/\[("\w+")\]/Session.Property ($1)/g;
+        $params{-call} =~ s/[\n\r]\s*//g;
+
+        croak "JScript must be 255 characters or fewer!"
+            unless length ($params{-call}) < 256;
+        $params{-Target} = $params{-call};
+    }
+
+    $params{-Type} = 5;
+    $params{-Source} = $key;
     return $self->_addCustomActionRow (\%params);
 }
 
@@ -905,6 +1083,26 @@ sub addDirPath {
     Win32::MSI::HighLevel::Common::allow (\%params, qw(-target -source));
 
     croak "Implementation incomplete.";
+}
+
+
+=head3 addDrLocator
+
+L</addDrLocator> adds a DrLocator table row. It is used with L<addAppSearch> and
+L<addSignature> to provide the information needed by the AppSearch action.
+
+=cut
+
+sub addDrLocator {
+    my ($self, %params) = @_;
+    my $dirs = $self->{tables}{Directory} ||= {};
+
+    Win32::MSI::HighLevel::Common::require (\%params,
+        qw(-Signature_));
+    Win32::MSI::HighLevel::Common::allow (\%params,
+        qw(-Signature_ -Parent -Path -Depth));
+
+    return $self->_addDrLocator (\%params);
 }
 
 
@@ -1099,6 +1297,14 @@ See also L</createCabs>.
 
 Id of the Feature that the file is to be installed for.
 
+=item I<-fileId>: optional
+
+Id to be used as the File column (and thus key) entry for the file being added.
+By default I<-fileName> is used for this value.
+
+I<-fileId> must be unique. I<-skipDupAdd> will be ignored if I<-fileId> is
+provided.
+
 =item I<-fileName>: required
 
 Name of the file to be installed. Note that a long file name should be given:
@@ -1118,7 +1324,7 @@ C<-isKey> is implied.
 =item I<-Language>: optional
 
 Specify the language ID or IDs for the file. If more than one ID is appropriate
-use a comma serparated list.
+use a comma separated list.
 
 If this parameter is omitted the value '1033' (US English) is used. To specify
 that no ID should be used (for font files for example) us an empty string.
@@ -1148,7 +1354,8 @@ Path to the directory containing the file to be installed.
 
 =item I<-skipDupAdd>: optional
 
-Skip adding the file if an entry already exists for it.
+Skip adding the file if an entry already exists for it. This option is ignored
+if I<-fileId> is provided.
 
 =item I<-targetDir>: optional
 
@@ -1177,8 +1384,8 @@ sub addFile {
         qw(-featureId -sourceDir -fileName));
     Win32::MSI::HighLevel::Common::allow (
         \%params, qw(
-            -featureId -fileName -forceNewComponent -isKey -Language -Sequence
-            -skipDupAdd -sourceDir -targetDir -Version )
+            -featureId -fileId -fileName -forceNewComponent -isKey -Language
+            -Sequence -skipDupAdd -sourceDir -targetDir -Version )
             );
 
     croak
@@ -1197,31 +1404,30 @@ sub addFile {
     $params{-sourceDirRel} =
         File::Spec->abs2rel ($params{-sourceDir}, $self->{-sourceRoot});
     $params{-Version} = Win32::GetFileVersion ($params{-path});
-    if ($params{-skipDupAdd}) {
+    if ($params{-skipDupAdd} and ! exists $params{-fileId}) {
         my $luKey = lc "$params{-sourceDirRel}\\$params{-fileName}";
 
         return $self->{lookup}{filePath}{$luKey}
             if exists $self->{lookup}{filePath}{$luKey};
     }
 
-    open FILE, '<:raw', $params{-path};
+    open my $testFile, '<:raw', $params{-path}
+        or croak ("Unable to open file $params{-path}: $!");
 
-    my $header;
-    read FILE, $header, 256, 0
-        or croak ("Unable to read from file $params{-source}");
+    my $header = '';
+    read $testFile, $header, 256, 0; # No test - doesn't matter if read fails
 
     my $isPE = $header =~ /^MZ/;
     if ($isPE) {
         my $peOffset = substr ($header, 0x3c, 4);
         $peOffset = unpack ('V', $peOffset);
-        seek FILE, $peOffset, 0;
+        seek $testFile, $peOffset, 0;
 
-        my $ok = read FILE, $header, 2
-            or croak ("Unable to read from file $params{-path}");
-        $isPE = $header =~ /^PE/;
+        my $ok = read $testFile, $header, 2;
+        $isPE = $ok and $header =~ /^PE/;
     }
 
-    CORE::close FILE;
+    CORE::close $testFile;
 
     $params{-directory_} = $self->getTargetDirID ($params{-targetDir})
         if not exists $params{-directory_};
@@ -1242,9 +1448,14 @@ sub addFile {
         }
     }
 
+    if (exists $params{-fileId}) {
+        $params{-File} = $params{-fileId};
+    } else {
     $params{-File} =
         $self->_getUniqueID ("$params{-fileName}", 'File', 72,
         $params{-sourceDirRel});
+    }
+
     $params{-FileSize} = -s $params{-path};
 
     if (!defined $component) {
@@ -1408,7 +1619,7 @@ Id for the action. This must be either a built-in action or a custom action.
 A matching entry must exist in the CustomAction table if this is a custom
 action.
 
-=item I<-Condition>: required
+=item I<-Condition>: optional
 
 A conditional expression that must evaluate true at run time for the step to be
 executed.
@@ -1425,7 +1636,7 @@ sub addInstallUISequence {
     my ($self, %params) = @_;
 
     Win32::MSI::HighLevel::Common::require (\%params,
-        qw(-Action -Condition -Sequence));
+        qw(-Action -Sequence));
     Win32::MSI::HighLevel::Common::allow (\%params,
         qw(-Action -Condition -Sequence));
 
@@ -1648,13 +1859,13 @@ registry will not be searched if -64Bit is set.
 
 A key into the Directory table to be set from the registry.
 
-One of I<-directory>, I<file> and I<-property> is required.
+One of I<-directory>, I<-file> and I<-property> is required.
 
 =item I<-file>: optional
 
 A key into the File table to be set from the registry.
 
-One of I<-directory>, I<file> and I<-property> is required.
+One of I<-directory>, I<-file> and I<-property> is required.
 
 =item I<-Key>: required
 
@@ -1725,6 +1936,84 @@ sub addRegLocator {
 
     return $self->_addRegLocatorRow (\%params);
 }
+
+
+#=head3 addRemoveFile
+#
+#Add a RemoveFile table entry to remove files or an empty
+#folder.
+#
+#=over 4
+#
+#=item I<-FileKey>: optional
+#
+#Unique id identifying this table entry
+#
+#=item I<-directory>: required
+#
+#Path to the directory to remove or remove files from.
+#
+#=item I<-directory>: required
+#
+#Path to the directory to remove or remove files from.
+#
+#=item I<-directory>: required
+#
+#Path to the directory to remove or remove files from.
+#
+#=item I<-InstallMode>: required
+#
+#One of:
+#
+#=over 4
+#
+#=item msidbRemoveFileInstallModeOnInstall: remove on install
+#
+#=item msidbRemoveFileInstallModeOnRemove: remove on uninstall
+#
+#=item msidbRemoveFileInstallModeOnBoth: always remove
+#
+#=back
+#
+#=back
+#
+#=cut
+#
+#sub addRemoveFile {
+#    my ($self, %params) = @_;
+#    my $table = $self->{tables}{RemoveFile} ||= {};
+#
+#    Win32::MSI::HighLevel::Common::require (\%params, qw(-Key -Root));
+#    Win32::MSI::HighLevel::Common::allow (\%params,
+#        qw(-64Bit -directory -file -Key -Name -property -Root));
+#    $params{-Name} ||= '';
+#
+#    my $type = 0;
+#    my $signature;
+#
+#    if (exists $params{-directory}) {
+#        $signature = $params{-directory};
+#        $type      = msidbLocatorTypeDirectory;
+#
+#    } elsif (exists $params{-file}) {
+#        $signature = $params{-file};
+#        $type      = msidbLocatorTypeFileName;
+#
+#    } elsif (exists $params{-property}) {
+#        $signature = $params{-property};
+#        $type      = msidbLocatorTypeRawValue;
+#    }
+#
+#    $type |= msidbLocatorType64bit
+#        if exists $params{'-64Bit'} && $params{'-64Bit'};
+#    $params{-Signature_} = $signature;
+#    $params{-Type}       = $type;
+#
+#    croak "One of -directory, -file or -property required"
+#        unless defined $signature;
+#
+#    return $self->_addRegLocatorRow (\%params);
+#}
 
 
 =head3 addShortcut
@@ -1900,6 +2189,249 @@ sub addShortcut {
 }
 
 
+=head3 addSignature
+
+Add an entry to the Signature table used by the AppSearch action to match
+previously installed applications.
+
+The following parameters are recognised by L</addSignature>:
+
+=over 4
+
+=item I<-FileName>: required
+
+The name of the file to search for.
+
+=item I<-Languages>: optional
+
+Specify the language ID or IDs for the file. If more than one ID is specified
+use a comma separated list. Multiple entries require a file supporting all
+specified languages for a match.
+
+=item I<-MaxDate>: optional
+
+The maximum creation date of the file. If this parameter is specified, then the
+file must have a creation date that is at most equal to MaxDate. This must be a
+non-negative number. The format of this field is two packed 16-bit values of
+type WORD. The high order WORD value specifies the date in MS-DOS date format.
+The low order WORD value specifies the time in MS-DOS time format. A value of 0
+for the time value represents midnight.
+
+The formula for calculating the value is:
+
+   (($Year - 1980) * 512 + $Month * 32 + $Day) * 65536 + $Hours * 2048 + $Minutes * 32 + $Seconds / 2
+
+=item I<-MinDate>: optional
+
+The minimum modification date and time of the file. If this field is specified,
+then the file under inspection must have a modification date and time that is at
+least equal to MinDate.
+
+See I<-MaxSize> above.
+
+=item I<-MinSize>: optional
+
+The minimum size of the file. If this parameter is specified, then the file
+under inspection must have a size that is at least equal to MinSize. This must
+be a non-negative number.
+
+=item I<-MaxVersion>: optional
+
+The maximum version of the file. If this parameter is specified, then the file
+must have a version that is at most equal to MaxVersion.
+
+=item I<-MinVersion>: optional
+
+The minimum version of the file, with a language comparison. If this field is
+specified, then the file must have a version that is at least equal to
+MinVersion. If the file has an equal version to the MinVersion field value but
+the language specified in the Languages column differs, the file does not
+satisfy the signature filter criteria.
+
+Note The language specified in the Languages parameter is used in the comparison
+and there is no way to ignore language. If you want a file to meet the
+MinVersion field requirement regardless of language, you must enter a value in
+the MinVersion field that is one less than the actual value. For example, if the
+minimum version for the filter is 2.0.2600.1183, use 2.0.2600.1182 to find the
+file without matching the language information.
+
+=item I<-Signature>: required
+
+This required parameter must be a unique id that is used as an external key by
+various tables involved in searching for applications and related files,
+directories and registry entries.
+
+=back
+
+=cut
+
+sub addSignature {
+    my ($self, %params) = @_;
+    my $table = $self->{tables}{Signature} ||= {};
+    my $featureId = $params{-featureId};
+
+    Win32::MSI::HighLevel::Common::require (\%params, qw(-Signature -FileName));
+    Win32::MSI::HighLevel::Common::allow (
+        \%params, qw(
+            -Signature -FileName -MinVersion -MaxVersion -MinSize -MaxSize
+            -MinDate -MaxDate -Languages
+            )
+            );
+
+    return $self->_addSignatureRow (\%params);
+}
+
+
+=head3 addStorage
+
+Add a binary file to the installation as a storage.
+
+=over 4
+
+=item I<-Name>: required
+
+Id to be used as the key entry in the storages table. This entry must be
+unique.
+
+=item I<-file>: required
+
+Path to the file to be added on the source system.
+
+=back
+
+=cut
+
+
+sub addStorage {
+    my ($self, %params) = @_;
+
+    Win32::MSI::HighLevel::Common::require (\%params, qw(-Name -file));
+    Win32::MSI::HighLevel::Common::allow (\%params, qw(-Name -file));
+
+    croak "File $params{-file} must exist during installer generation"
+        unless -e $params{-file};
+
+    $params{-Data} = $params{-file};
+    $self->_addStorageRow (\%params);
+}
+
+
+=head3 addUpgrade
+
+Add an upgrade table entry.
+
+    $msi->addUpgrade (
+        -UpgradeCode => $UpgradeGUID,
+        -VersionMin  => 1.0,
+        -VersionMax  => 2.0
+        );
+
+=over 4
+
+=item I<-UpgradeCode>: optional
+
+UpgradeCode GUID associated with the product detected by the Upgrade table entry
+being added.
+
+If this parameter is omitted the UpgradeCode Property table entry will be used
+and must be present at the time the C<addUpgrade> call is made.
+
+Version numbers (if provided) must be in the form C<x[.y[.z]]>. y and z will be
+set to 0 if they are omitted. x, y, and z must be numeric. A fourth value is not
+allowed.
+
+=item I<-VersionMin>: optional
+
+Minimum product version number that this table entry will detect.
+
+If both C<-VersionMin> and C<-VersionMax> are omitted C<-VersionMin> will be set
+to 0 to find all product versions.
+
+=item I<-VersionMax>: optional
+
+Maximum product version number that this table entry will detect.
+
+If both C<-VersionMin> and C<-VersionMax> are omitted C<-VersionMax> will be set
+to null to find all product versions.
+
+=item I<-Language>: optional
+
+Must be one of Microsoft's language codes. For example US English is 0x0409.
+
+Language matching will be ignored if C<-Language> is omitted.
+
+=item I<-Attributes>: optional
+
+The following attributes may be ored together:
+
+    msidbUpgradeAttributesMigrateFeatures     Copy selected features
+    msidbUpgradeAttributesOnlyDetect          Detect only - don't uninstall
+    msidbUpgradeAttributesIgnoreRemoveFailure Ignore uninstall failure
+    msidbUpgradeAttributesVersionMinInclusive Include min version
+    msidbUpgradeAttributesVersionMaxInclusive Include max vesion
+    msidbUpgradeAttributesLanguagesExclusive  Include all langs except listed
+
+See the MSDN documentation for further information about these attributes.
+
+=item I<-Remove>: optional
+
+List of features to be removed during the install. A single feature name or an
+array reference containing feature names is expected.
+
+=item I<-ActionProperty>: required
+
+Public property name (must be upper case) of the property that will be set to
+the list of product codes for installed products matching this upgrade entry.
+
+This property name will be added to the SecureCustomProperties property during
+L</writeTables>.
+
+=back
+
+=cut
+
+sub addUpgrade {
+    my ($self, %params) = @_;
+    my $table = $self->{tables}{Registry} ||= {};
+
+    Win32::MSI::HighLevel::Common::require (\%params, qw(-ActionProperty));
+    Win32::MSI::HighLevel::Common::allow (\%params,
+        qw(
+        -UpgradeCode -VersionMin -VersionMax -Language -Attributes -Remove
+        -ActionProperty
+        )
+        );
+
+    if (! exists $params{-UpgradeCode}) {
+        my $ucProp = $self->getProperty ('UpgradeCode');
+
+        croak "-UpgradeCode parameter or UpgradeCode property required for addUpgrade"
+            unless defined $ucProp;
+
+        $params{-UpgradeCode} = $ucProp;
+    }
+
+    $params{-Attributes} ||= 0;
+    my $residuleFlags = $params{-Attributes} & ~0x707;
+    croak "Bad -Attributes value used for addUpgrade: $residuleFlags"
+        if $residuleFlags;
+
+    $params{-Language} ||= '';
+
+    croak "One of -VersionMin and -VersionMax required for addUpgrade"
+        unless exists $params{-VersionMin} or exists $params{-VersionMax};
+    for my $key (qw()) {
+        next unless exists $params{$key};
+        next if $params{$key} =~ /^\d+(\.\d+(\.\d+)?)?$/;
+
+        croak "Version number must be of the form x[.y[.z]].\n" .
+            "   $params{$key} is not valid for $key";
+    }
+
+    return $self->_addUpgradeRow (\%params);
+}
+
+
 =head3 createCabs
 
 Creates the cab files as required from the files that have been added with
@@ -1916,7 +2448,10 @@ the system so this should not generally be an issue. If L</createCabs> generates
 a 'makecabs.exe not found' error copy makecabs.exe into the working directory or
 add the path to makecabs.exe to the PATH environment variable.
 
-L</createCabs> updated the C<Media> table as appropriate.
+L</createCabs> updates the C<Media> table as appropriate.
+
+Note that L</createCabs> generates a C<cab.dff> file that may be used as a
+manifest of the files added to the install (ignore lines starting with .).
 
 =cut
 
@@ -1939,7 +2474,7 @@ sub createCabs {
         grep { ref $fileTable->{$_} } keys %$fileTable;
     my $lastComponent = $files[0][0];
     my $sequence      = 1;
-    my $cabDFF        = "$self->{-sourceRoot}\\cab.dff";
+    my $cabDFF        = "$self->{-workRoot}\\cab.dff";
 
     open CABDFF, '>', $cabDFF;
     print CABDFF <<HEADER;
@@ -1974,14 +2509,14 @@ TAIL
 
     my $workDir = Cwd::getcwd ();
 
-    chdir $self->{-sourceRoot};
-    mkdir "$self->{-sourceRoot}\\disk1" unless -d "$self->{-sourceRoot}\\disk1";
-    `makecab /F $cabDFF /L "$self->{-sourceRoot}" /V1`;
+    chdir $self->{-workRoot};
+    mkdir "$self->{-workRoot}\\disk1" unless -d "$self->{-workRoot}\\disk1";
+    `makecab /F $cabDFF /L "$self->{-workRoot}" /V1`;
     chdir $workDir;
 
     $self->addCab (
         -name    => 'cab1.cab',
-        -file    => "$self->{-sourceRoot}\\disk1\\cab1.cab",
+        -file    => "$self->{-workRoot}\\disk1\\cab1.cab",
         -disk    => 1,
         -lastSeq => $sequence - 1
         );
@@ -2098,6 +2633,7 @@ sub createTable {
         Text          => 'CHAR(255) LOCALIZABLE',
         UpperCase     => 'CHAR(255)',
         Version       => 'CHAR(72)',
+        WildCardFilename      => 'CHAR(128) LOCALIZABLE',
         );
     my %columnSpecs = (
         AppSearch => [
@@ -2116,37 +2652,53 @@ sub createTable {
             Condition   => [qw(Condition)],
             KeyPath     => [qw(KeyPath(72))],
             ],
+        ControlCondition => [
+            Dialog_ => [qw(Key Identifier(72) Required)],
+            Control_ => [qw(Key Identifier(50) Required)],
+            Action => [qw(Key Text(50) Required)],
+            Condition => [qw(Key Condition Required)],
+            ],
+        CreateFolder => [
+            Directory_ => [qw(Key Identifier(72) Required)],
+            Component_ => [qw(Key Identifier(72) Required)],
+            ],
         CustomAction => [
-            Action => [qw(Identifier Key Required)],
+            Action => [qw(Key Identifier(72) Required)],
             Type   => [qw(Integer Required)],
             Source => [qw(CustomSource)],
             Target => [qw(Formatted)],
             ],
         Directory => [
-            Directory        => [qw(Key Identifier Required)],
-            Directory_Parent => 'Identifier',
+            Directory        => [qw(Key Identifier(72) Required)],
+            Directory_Parent => ['Identifier(72)'],
             DefaultDir       => [qw(DefaultDir Required)],
+            ],
+        DrLocator => [
+            Signature_  => [qw(Key Text Required)],
+            Parent => [qw(Key Identifier(72))],
+            Path    => [qw(Key Text)],
+            Depth      => [qw(Integer)],
             ],
         Extension => [
             Extension  => [qw(Key Text Required)],
-            Component_ => [qw(Key Identifier Required)],
+            Component_ => [qw(Key Identifier(72) Required)],
             ProgId_    => [qw(Text)],
             MIME_      => [qw(Text)],
             Feature_   => [qw(Identifier Required)],
             ],
         Feature => [
             Feature        => [qw(Key Identifier Required)],
-            Feature_Parent => 'Identifier',
-            Title          => 'Text(64)',
-            Description    => 'Text(255)',
-            Display        => 'Integer',
+            Feature_Parent => ['Identifier'],
+            Title          => ['Text(64)'],
+            Description    => ['Text(255)'],
+            Display        => ['Integer'],
             Level          => [qw(Integer Required)],
-            Directory_     => 'Directory',
+            Directory_     => ['Directory'],
             Attributes     => [qw(Integer Required)],
             ],
         FeatureComponents => [
             Feature_   => [qw(Key Identifier Required)],
-            Component_ => [qw(Key Identifier Required)],
+            Component_ => [qw(Key Identifier(72) Required)],
             ],
         File => [
             File   => [qw(Key Identifier Required)],
@@ -2161,6 +2713,11 @@ sub createTable {
         Icon => [
             Name => [qw(Identifier(32) Key Required)],
             Data => [qw(Binary Required)]
+            ],
+        InstallUISequence => [
+            Action => [qw(Identifier(72) Key Required)],
+            Condition => [qw(Condition)],
+            Sequence => [qw(Integer Required)],
             ],
         LaunchCondition => [
             Condition   => [qw(Key Condition Required)],
@@ -2198,23 +2755,50 @@ sub createTable {
             Name       => [qw(Formatted)],
             Type       => [qw(Integer)],
             ],
+        RemoveFile => [
+            FileKey => [qw(Key Identifier Required)],
+            Directory_ => [qw(Identifier Required)],
+            FileName => [qw(WildCardFilename)],
+            DirProperty => [qw(Identifier Required)],
+            InstallMode => [qw(Identifier Required)],
+            ],
         Shortcut => [
-            Shortcut               => [qw(Key Identifier Required)],
-            Directory_             => [qw(Identifier Required)],
+            Shortcut               => [qw(Key Identifier(72) Required)],
+            Directory_             => [qw(Identifier(72) Required)],
             Name                   => [qw(Filename Required)],
-            Component_             => [qw(Identifier Required)],
+            Component_             => [qw(Identifier(72) Required)],
             Target                 => [qw(Directory Required)],
             Arguments              => 'Formatted',
             Description            => 'Text',
             Hotkey                 => 'Integer',
-            Icon_                  => 'Identifier',
+            Icon_                  => 'Identifier(72)',
             IconIndex              => 'Integer',
             ShowCmd                => 'Integer',
-            WkDir                  => 'Identifier',
+            WkDir                  => 'Identifier(72)',
             DisplayResourceDLL     => 'Formatted',
             DisplayResourceId      => 'Integer',
             DescriptionResourceDLL => 'Formatted',
             DescriptionResourceId  => 'Integer',
+            ],
+        Signature => [
+            Signature  => [qw(Key Identifier(72) Required)],
+            FileName   => [qw(Text Required)],
+            MinVersion => [qw(Version)],
+            MaxVersion => [qw(Version)],
+            MinSize    => [qw(DoubleInteger)],
+            MaxSize    => [qw(DoubleInteger)],
+            MinDate    => [qw(DoubleInteger)],
+            MaxDate    => [qw(DoubleInteger)],
+            Languages   => [qw(Text)],
+            ],
+        Upgrade => [
+            UpgradeCode     => [qw(Key GUID Required)],
+            VersionMin      => [qw(Key Version)],
+            VersionMax      => [qw(Key Version)],
+            Language        => [qw(Key Text)],
+            Attributes      => [qw(Key Integer Required)],
+            Remove          => 'Formatted',
+            ActionProperty  => [qw(Identifier Required)],
             ],
         Verb => [
             Extension_ => [qw(Key Text Required)],
@@ -2225,8 +2809,24 @@ sub createTable {
             ],
             );
 
+    if (exists $params{_keys}) {
+        # Return the keys for the given table
+        my $tableSpec = $columnSpecs{$params{_keys}};
+
+        croak "Internal error - no column specification for $params{_keys} table"
+            unless defined $tableSpec;
+
+        my %fields = @$tableSpec;
+        my @keys = grep {grep {$_ eq 'Key'} @{$fields{$_}}} keys %fields;
+
+        return @keys;
+    }
+
     Win32::MSI::HighLevel::Common::require (\%params, qw(-table));
     Win32::MSI::HighLevel::Common::allow (\%params, qw(-table -columnSpec));
+
+    croak "$params{-table} is a temporary or read only table and can not be created."
+        if _readonlyTable ($params{-table});
 
     croak
         "A known table type ($params{-table} given) or a -columnSpec parameter is required"
@@ -2452,6 +3052,33 @@ sub getComponentIdForDirId {
 }
 
 
+=head3 getId
+
+Return the table key id generated for a given id. For example:
+
+    my $dirId = $msi->getId ('MyDir', 'Directory', 'my\\path');
+
+will return the unique id generated for the MyDir directory entry in the
+Directory table with 'my\path' as the parent path.
+
+=cut
+
+sub getId {
+    my ($self, $id, $context, $extra) = @_;
+    $extra ||= '';
+
+    my $key = lc "$id-$extra";
+
+    $key =~ s/^[^|]*\|//;    # Retain only long file name portion
+    $_[4] = $key if exists $_[4]; # 'Return' key
+    if (exists $self->{id_keyToId}{$context}{$key}) {
+        return $self->{id_keyToId}{$context}{$key};
+    } else {
+        return undef;
+    }
+}
+
+
 =head3 getParentDirID dirId
 
 Returns the parent Directory table id given an existing directory id.
@@ -2548,13 +3175,17 @@ result in failures at L</writeTables> time.
 
 sub getTableEntry {
     my ($self, $name, $keys) = @_;
-    my $key = join '/', map { $keys->{$_} } sort keys %$keys;
+    my $key = lc join '/', map { $keys->{$_} } sort keys %$keys;
 
-    croak "No table: $name" unless exists $self->{tables}{$name};
-    croak "No entry '$key' for table $name"
-        unless exists $self->{tables}{$name}{lc $key};
+    return undef unless exists $self->{tables}{$name};
+    return undef unless exists $self->{tables}{$name}{$key};
 
-    return $self->{tables}{$name}{lc $key};
+    my $entry = {%{$self->{tables}{$name}{$key}}};
+
+    $entry->{'!key'} = $key;
+    $entry->{'!name'} = $name;
+    $entry->{'!lu'} = $entry->{-lu};
+    return $entry;
 }
 
 
@@ -2649,9 +3280,9 @@ sub getTargetDirID {
             # Create the Directory table entry and the lookup entry
             my $short  = $self->_longToShort ($part);
             my $defDir = $short;
-            my $dirId  = $part;
+            my $dirId  = "Dir_$part"; # Avoid property id clashes
 
-            # Dir id must be uc if it is a public property (eg, for a feature dir)
+            # Dir id must be uc if it is public (eg, for a feature dir)
             $dirId = uc $dirId
                 if !@parts
                 and $public
@@ -2745,47 +3376,39 @@ sub importTable {
 
 Read the current .msi file and build an internal representation of it.
 
+An optional boolean parameter may be passed. If set true C<populateTables> will
+warn about any table files it finds that it doesn't know how to generate an
+internal representation for. Such unknown tables can not be manipulated and will
+be written to the output unchanged.
+
 =cut
 
 sub populateTables {
-    my $self              = shift;
+    my ($self, $warn)     = @_;
     my $tables            = $self->view (-table => '_Tables');
-    my %interestingTables = (
-        AppSearch              => \&_addAppSearchRow,
-        Binary                 => \&_addBinaryRow,
-        Component              => \&_addComponentRow,
-        Condition              => \&_addConditionRow,
-        Control                => \&_addControlRow,
-        CreateFolder           => \&_addCreateFolderRow,
-        CustomAction           => \&_addCustomActionRow,
-        Dialog                 => \&_addDialogRow,
-        Directory              => \&_addDirectoryRow,
-        Feature                => \&_addFeatureRow,
-        FeatureComponents      => \&_addFeatureComponentsRow,
-        File                   => \&_addFileRow,
-        Icon                   => \&_addIconRow,
-        InstallExecuteSequence => \&_addInstallExecuteSequenceRow,
-        InstallUISequence      => \&_addInstallUISequenceRow,
-        Media                  => \&_addMediaRow,
-        Property               => \&_addPropertyRow,
-        Registry               => \&_addRegistryRow,
-        RegLocator             => \&_addRegLocatorRow,
-        Shortcut               => \&_addShortcutRow,
-        );
 
     while (my $tableName = $tables->fetch ()) {
         my $name = $tableName->string ('Name');
 
         $self->{tables}{$name} ||= {_created => 1};
-        next unless exists $interestingTables{$name};
+        if (   ! exists $self->{knownTables}{$name}
+            or ! defined $self->{knownTables}{$name}
+            ) {
+            warn "Don't know how to populate $name tables"
+                if $warn and ! exists $self->{knownTables}{$name};
+            $self->{knownTables}{$name} = undef; # Only warn about entry once
+            next;
+        }
 
         my $table = $self->view (-table => $name);
 
         while (my $rec = $table->fetch ()) {
             $rec->populate ();
             $rec->{state} = Win32::MSI::HighLevel::Record::kClean;
-            $interestingTables{$name}->($self, $rec);
+            $self->{knownTables}{$name}->($self, $rec);
         }
+    } continue {
+        $tableName = 0;
     }
 
     # Fix any missing File table information
@@ -2802,6 +3425,8 @@ sub populateTables {
 
         $row->{-Attributes} ||= 0;
     }
+
+    $tables = 0;
 }
 
 
@@ -3135,6 +3760,25 @@ sub setTableEntryField {
 }
 
 
+=head3 tableRows
+
+Returns the count of the rows in a given table.
+
+    my $count = $msi->tableRows ('File');
+
+A single parameter giving the name of the table is required. C<undef> is
+returned if the table does not exist.
+
+=cut
+
+sub tableRows {
+    my ($self, $table) = @_;
+
+    return undef unless exists $self->{tables}{$table};
+    return scalar grep /^[^_]/, keys %{$self->{tables}{$table}};
+}
+
+
 =head3 updateTableEntry
 
 Update the table column data for a table entry obtained using getTableEntry.
@@ -3151,9 +3795,26 @@ Use with caution. In particular, do not create new keys in the hash.
 sub updateTableEntry {
     my ($self, $entry) = @_;
 
-    croak "Invalid table entry" unless defined $entry and exists $entry->{state};
+    croak "Invalid table entry" unless
+            defined $entry
+        and exists $entry->{state}
+        and exists $entry->{'!name'};
 
-    $entry->{state} = Win32::MSI::HighLevel::Record::kDirty;
+    my $name = $entry->{'!name'};
+    my $key = $entry->{'!key'};
+    my $lu =  $entry->{'!lu'};
+    croak "Don't know how to update $name tables" unless
+        exists $self->{knownTables}{$name};
+
+    # Delete the original row
+    $self->_deleteRow ($name, $key, $lu);
+    delete $entry->{'!lu'};
+    delete $entry->{'!key'};
+    delete $entry->{'!name'};
+
+    # Add the updated row
+    $entry->{state} = Win32::MSI::HighLevel::Record::kNew;
+    $self->{knownTables}{$name}->($self, $entry);
 }
 
 
@@ -3197,14 +3858,36 @@ writeTables is called the changes that have been made are cached in memory.
 writeTables writes these changes through to the .msi database in preparation for
 a L</commit>.
 
+L</writeTables> also updates the SecureCustomProperties property with Upgrade
+table L</-ActionProperty_> properties.
+
 =cut
 
 sub writeTables {
     my $self = shift;
 
+    # First update SecureCustomProperties
+    my $scp = $self->getProperty ('SecureCustomProperties') || '';
+    my %properties = map {$_ => 1} split ';', $scp;
+
+    for my $tableColumn ([Upgrade => '-ActionProperty']) {
+        my ($table, $column) = @$tableColumn;
+
+        next unless exists $self->{tables}{$table};
+        for my $entry (keys %{$self->{tables}{$table}}) {
+            next if $entry =~ /^_/; # Ignore flags
+            $properties{$self->{tables}{$table}{$entry}{$column}} = 1;
+        }
+    }
+
+    $scp = join ';', sort keys %properties;
+    $self->setProperty (-Property => 'SecureCustomProperties', -Value => $scp)
+        if length $scp;
+
     for my $tableName (sort keys %{$self->{tables}}) {
         $self->createTable (-table => $tableName)
-            unless exists $self->{tables}{$tableName}{_created};
+            unless _readonlyTable ($tableName)
+                or exists $self->{tables}{$tableName}{_created};
 
         my $table = $self->view (-table => $tableName);
         my $fieldHash = $self->{tables}{$tableName};
@@ -3216,12 +3899,13 @@ sub writeTables {
 
         my $rec = $table->createRecord ();
 
-        # Add/update rows
+        # Add/update/delete rows
         for my $key (sort keys %$fieldHash) {
             next if $key =~ /^(_|-[a-z])/;
             my $rowData = $fieldHash->{$key};
 
-            next if $rowData->{state} == Win32::MSI::HighLevel::Record::kClean;
+            next if defined $rowData->{state}
+                and $rowData->{state} == Win32::MSI::HighLevel::Record::kClean;
 
             my @columns = map { my $k = $_; $k =~ s/^-//; $k }
                 grep { /^-[A-Z]/ }
@@ -3229,14 +3913,26 @@ sub writeTables {
 
             defined $rowData->{"-$_"} and $rec->setValue ($_, $rowData->{"-$_"})
                 for @columns;
+            $rec->{state} = $rowData->{state};
 
             $key ||= '<null>';
+
+            if ($rowData->{state} == Win32::MSI::HighLevel::Record::kDelete) {
+                (my $realKey = $key) =~ s/^\*//;
+                print "Deleting: $tableName/$realKey\n";
+            } else {
             print "Writing: $tableName/$key\n";
+            }
             $rowData->{state} == Win32::MSI::HighLevel::Record::kNew
                 ? $rec->insert ()
                 : $rec->update ();
 
+            if ($rec->getState () == Win32::MSI::HighLevel::Record::kDelete) {
+                delete $fieldHash->{$key};
+            } else {
             $rowData->{state} = $rec->getState ();
+            }
+
             $rec->clearFields ();
             next;
         }
@@ -3245,6 +3941,11 @@ sub writeTables {
     return 1;
 }
 
+
+# _addXxxRow routines handle adding table row information to the internal
+# representation of the database. They call through to _addRow which expects a
+# table name, row look up key name (excluding - prefix), the record and an
+# optional auxillary lookup string. See _addRow for lookup key details.
 
 sub _addBinaryRow {
     my ($self, $rec) = @_;
@@ -3256,7 +3957,7 @@ sub _addBinaryRow {
 sub _addAppSearchRow {
     my ($self, $rec) = @_;
 
-    $rec->{lu} = "$rec->{-Property}/$rec->{-Signature_}";
+    _genLu ($rec, qw(Property Signature_));
     return $self->_addRow ('AppSearch', 'lu', $rec);
 }
 
@@ -3279,15 +3980,23 @@ sub _addConditionRow {
 sub _addControlRow {
     my ($self, $rec) = @_;
 
-    $rec->{-lu} = "$rec->{-Control}/$rec->{-Dialog_}";
+    _genLu ($rec, qw(Control Dialog_));
     return $self->_addRow ('Control', 'lu', $rec);
+}
+
+
+sub _addControlEventRow {
+    my ($self, $rec) = @_;
+
+    _genLu ($rec, qw(Argument Condition Control_ Dialog_ Event));
+    return $self->_addRow ('ControlEvent', 'lu', $rec);
 }
 
 
 sub _addCreateFolderRow {
     my ($self, $rec) = @_;
 
-    $rec->{-lu} = "$rec->{-Component_}/$rec->{-Directory_}";
+    _genLu ($rec, qw(Component_ Directory_));
     return $self->_addRow ('CreateFolder', 'lu', $rec);
 }
 
@@ -3333,6 +4042,13 @@ sub _addDirectoryRow {
 }
 
 
+sub _addDrLocator {
+    my ($self, $rec) = @_;
+
+    return $self->_addRow ('DrLocator', 'Signature_', $rec);
+}
+
+
 sub _addMsiDriverPackagesRow {
     my ($self, $rec) = @_;
 
@@ -3360,7 +4076,7 @@ sub _addFeatureRow {
 sub _addFeatureComponentsRow {
     my ($self, $rec) = @_;
 
-    $rec->{-lu} = "$rec->{-Component_}/$rec->{-Feature_}";
+    _genLu ($rec, qw(Component_ Feature_));
     return $self->_addRow ('FeatureComponents', 'lu', $rec, $rec->{-lu});
 }
 
@@ -3425,7 +4141,7 @@ sub _addPropertyRow {
 sub _addRegistryRow {
     my ($self, $rec) = @_;
 
-    $rec->{-lu} = "$rec->{-Key}/$rec->{-Name}/$rec->{-Root}";
+    _genLu ($rec, qw(Key Name Root));
     $self->_addRow ('Registry', 'lu', $rec, $rec->{-lu});
     return $rec->{-Registry};
 }
@@ -3442,7 +4158,7 @@ sub _addRegLocatorRow {
 # $key must be a key into the hash referenced by $rec. Often it will be a table
 # field. Where more than one field is a key field a synthentic key may be
 # generated by:
-#   $rec->{-lu} = "$params{-Key1}/$params{-Key2}/..."
+#   _genLu ($rec, qw(Key1 Key2 ...));
 # and 'lu' is passed in as the $key value.
 # The key entries MUST be sorted by column name!
 #
@@ -3454,6 +4170,10 @@ sub _addRow {
     my $table = $self->{tables}{$name} ||= {};
     my $hashKey = lc $rec->{"-$key"};
 
+    croak "-$key missing from $name table entry.\n"
+    . "This may be a HighLevel bug where '-lu' should be used for the lookup key"
+        unless exists $rec->{-$key};
+
     if (exists $table->{$hashKey}) {
         croak "Duplicate $key $rec->{-$key} entry not allowed in $name table"
             unless $rec->{skipDup};
@@ -3463,11 +4183,12 @@ sub _addRow {
 
     my @keys = grep { /^-/ } keys %$rec;
 
-    $table->{$hashKey}{$_} = $rec->{$_} for @keys;
+    @{$table->{$hashKey}}{@keys} = @{$rec}{@keys};
+
     if (defined $lu) {
         $lu                                       = lc $lu;
         $self->{lookup}{$name}{$lu}               = $hashKey;
-        $self->{id_idToKey}{$name}{$rec->{-$key}} = $lu;
+        $self->{id_idToKey}{$name}{lc $rec->{-$key}} = $lu;
     }
 
     if ($rec->{state}) {
@@ -3482,22 +4203,32 @@ sub _addRow {
 sub _addShortcutRow {
     my ($self, $rec) = @_;
 
-    $rec->{-lu} = "$rec->{-Directory_}/$rec->{-Target}";
+    _genLu ($rec, qw(Directory_ Target));
     return $self->_addRow ('Shortcut', 'Shortcut', $rec, $rec->{-lu});
 }
 
 
-sub _dirPair {
-    my ($self, $pairStr) = @_;
-    my ($short, $long) = $pairStr =~ /([^|]+)\|?(.*)/;
+sub _addSignatureRow {
+    my ($self, $rec) = @_;
 
-    $long                             ||= $short;
-    $short                            ||= $self->{dp_longToShort}{lc $long};
-    $short                            ||= $self->_longToShort ($long);
-    $self->{dp_longToShort}{lc $long} ||= $short;
-
-    return [$short, $long];
+    return $self->_addRow ('Signature', 'Signature', $rec, $rec->{-Signature});
 }
+
+
+sub _addStorageRow {
+    my ($self, $rec) = @_;
+
+    return $self->_addRow ('_Storages', 'Name', $rec, $rec->{-Name});
+}
+
+
+sub _addUpgradeRow {
+    my ($self, $rec) = @_;
+
+    _genLu ($rec, qw(UpgradeCode VersionMin VersionMax Language Attributes));
+    return $self->_addRow ('Upgrade', 'lu', $rec, $rec->{-lu});
+}
+
 
 #sub _getFullSourceDirPath {
 #    my ($self, $dir) = @_;
@@ -3590,6 +4321,7 @@ sub _checkFilename {
     my $badShort = "$badLong+,;=[] \t\n\r";
     my ($short, $long) = $filename =~ /(^[^|]+)(?:\|(.*))?$/;
 
+    $short = '' unless defined $short;
     $type ||= 'Filename';
     croak "Invalid $type (bad short filename character): $filename"
         if $short =~ /\Q$badShort/;
@@ -3601,6 +4333,35 @@ sub _checkFilename {
         if defined $long and $long =~ /^\Q$badLong/;
 }
 
+
+sub _deleteRow {
+    my ($self, $name, $key, $lu) = @_;
+    my $rec = $self->{tables}{$name}{$key};
+
+    $self->{tables}{$name}{$key}{state} = Win32::MSI::HighLevel::Record::kDelete;
+    $self->{tables}{$name}{"*$key"} = {%{$self->{tables}{$name}{$key}}};
+    delete $self->{tables}{$name}{$key};
+
+    if (defined $lu) {
+        $lu = lc $lu;
+        delete $self->{lookup}{$name}{$lu} if exists $self->{lookup}{$name};
+        delete $self->{id_idToKey}{$name}{$rec->{-$key}}
+            if exists $self->{id_idToKey}{$name};
+    }
+}
+
+
+sub _dirPair {
+    my ($self, $pairStr) = @_;
+    my ($short, $long) = $pairStr =~ /([^|]+)\|?(.*)/;
+
+    $long                             ||= $short;
+    $short                            ||= $self->{dp_longToShort}{lc $long};
+    $short                            ||= $self->_longToShort ($long);
+    $self->{dp_longToShort}{lc $long} ||= $short;
+
+    return [$short, $long];
+}
 
 sub _findFileId {
     my ($self, $target) = @_;
@@ -3620,6 +4381,20 @@ sub _findFileId {
     }
 
     return $match;
+}
+
+
+# _genLu generates a lookup string for the key fields in a table.
+# If a single 'key' is passed in a table name is assumed and the key
+# list is generated.
+# If multiple keys are passed in they are used directly.
+sub _genLu {
+    my ($rec, @keys) = @_;
+
+    @keys = createTable  (0, _keys => $keys[0]) if @keys == 1;
+
+    ! defined $rec->{"-$_"} and $rec->{"-$_"} = '' for @keys;
+    $rec->{-lu} = join '/', map $rec->{"-$_"}, sort @keys;
 }
 
 
@@ -3649,43 +4424,69 @@ sub _getFullFilePath {
 }
 
 
+# Generate a unique Id to be used as a table key entry.
+#
+# $id is a source id - often a file name or user supplied id
+# $context is generally a table name
+# $length is the maximum generated id length
+# $extra may be provided to disambiguate between id's - often a file path
+
 sub _getUniqueID {
 
     # $context should be the bare table name if the id is a table key (eg 'File')
     my ($self, $id, $context, $length, $extra) = @_;
-
-    $extra ||= '';
-
-    my $key = lc "$id$extra";
-
-    $key =~ s/^[^|]*\|//;    # Retain only long file name portion
-
-    $context ||= 'global';
+    my $key;
 
     return $self->{id_keyToId}{$context}{$key}
-        if exists $self->{id_keyToId}{$context}{$key};
+        if $self->_haveUniqueId ($id, $context, $extra, $key);
 
     $length ||= 38;
     $id =~ tr/a-zA-Z0-9_.//cd;
     $id =~ s/^[\d.]+//;
     $id = substr $id, 0, $length;
 
-    while (exists $self->{id_idToKey}{$context}{$id}) {
+    my $lcId = lc $id;
+
+    while (exists $self->{id_idToKey}{$context}{$lcId}) {
         if ($id =~ /(?<!\d)9+$/) {
             $id =~ s/(9+)$/"1" . ('0' x length $1)/e;
         } else {
             my ($digits) = $id =~ /(?<=_)(\d+)/;
+
             if (!defined $digits or !length $digits) {
                 $id .= '_0';
                 $digits = 0;
             }
+
             $id =~ s/(?<=_)(\d+)/$digits + 1/e;
         }
+
+        $lcId = lc $id;
     }
 
-    $self->{id_idToKey}{$context}{$id}  = $key;
+    $self->{id_idToKey}{$context}{$lcId} = $key;
     $self->{id_keyToId}{$context}{$key} = $id;
     return $id;
+}
+
+
+# Check to see if an id has been generated already for a given context.
+# Sets $key
+sub _haveUniqueId {
+    $_[2] ||= 'global' unless defined $_[2]; # Init $context
+
+    my ($self, $id, $context, $extra) = @_;
+    $extra ||= '';
+
+    my $key = lc "$id-$extra";
+
+    $key =~ s/^[^|]*\|//;    # Retain only long file name portion
+    $_[4] = $key if exists $_[4]; # 'Return' key
+    if (exists $self->{id_keyToId}{$context}{$key}) {
+        return $self->{id_keyToId}{$context}{$key};
+    } else {
+        return undef;
+    }
 }
 
 
@@ -3734,6 +4535,12 @@ sub _longToShort {
     $self->{dp_shortToLong}{$short} = $long;
     $self->{dp_longToShort}{lc $long} = $short;
     return $short;
+}
+
+
+sub _readonlyTable {
+    my $table = shift;
+    return $table =~ /^(_Storages|_Columns|_Streams|_Tables|_TransformView)$/;
 }
 
 

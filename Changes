@@ -15,3 +15,15 @@ Revision history for Perl module Win32::MSI::HighLevel
     - Added Test::Pod::Coverage and Test::Pod to prerequisites (used by tests)
     - Added complete installer sample script
     - Fixed omitted errorMsg -> _errorMsg in various places
+
+1.0003 Sun Oct 5 10:15:23 2008
+    - Added new table support: ControlCondition, CreateFolder, Signature,
+      DrLocator, Storage, Upgrade
+    - Fixed various documentation errors
+    - Improved addComponent. Now adds a CreateFolder row when appropriate
+    - Added JScript CustomActions support
+    - Improved table update management
+    - Added automatic management of SecureCustomProperties for the Upgrade table
+    - Added Storage management
+    - Improved various error reporting
+    

@@ -8,7 +8,7 @@ Win32::MSI::HighLevel::Record - Helper module for Win32::MSI::HighLevel.
 
 =head1 VERSION
 
-Version 1.0002
+Version 1.0003
 
 =head1 AUTHOR
 
@@ -29,7 +29,7 @@ LICENSE file included with this module.
 BEGIN {
     use Exporter ();
     use vars qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
-    $VERSION     = '1.0002';
+    $VERSION     = '1.0003';
     @ISA         = qw(Exporter);
     @EXPORT      = qw();
     @EXPORT_OK   = qw();
@@ -65,6 +65,7 @@ use constant kNoState => 0;
 use constant kNew     => 1;
 use constant kDirty   => 2;
 use constant kClean   => 3;
+use constant kDelete  => 4;
 
 my $MsiCreateRecord        = Win32::MSI::HighLevel::Common::_def (MsiCreateRecord        => "I");
 my $MsiFormatRecord        = Win32::MSI::HighLevel::Common::_def (MsiFormatRecord        => "IIPP");
@@ -418,15 +419,22 @@ sub setInteger {
 sub update {
     my $self = shift;
 
-    $self->{result} =
-        $MsiViewModify->Call ($self->{view}{handle}, kMSIMODIFY_SEEK,
-        $self->{handle});
-    $self->writeFields ();
-    $self->{result} =
-        $MsiViewModify->Call ($self->{view}{handle}, kMSIMODIFY_UPDATE,
-        $self->{handle});
+    $self->{result} = $MsiViewModify->Call
+        ($self->{view}{handle}, kMSIMODIFY_SEEK,$self->{handle});
+
     croak Win32::MSI::HighLevel::_errorMsg ($self) if $self->{result};
-    $self->{state} = kClean;
+
+    if ($self->{state} == kDelete) {
+        $self->{result} = $MsiViewModify->Call
+            ($self->{view}{handle}, MSIMODIFY_DELETE, $self->{handle});
+    } else {
+    $self->writeFields ();
+        $self->{result} = $MsiViewModify->Call
+            ($self->{view}{handle}, kMSIMODIFY_UPDATE, $self->{handle});
+        $self->{state} = kClean;
+    }
+
+    croak Win32::MSI::HighLevel::_errorMsg ($self) if $self->{result};
 }
 
 
@@ -454,6 +462,7 @@ sub writeFields {
         'l' => \&setString,
         'L' => \&setString,
         'v' => \&setStream,
+        'V' => \&setStream,
         );
 
     $self->{state} ||= kDirty;
