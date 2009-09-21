@@ -9,7 +9,7 @@ require 5.007003;    # for Digest::MD5
 BEGIN {
     use Exporter ();
     use vars qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
-    our $VERSION = '1.0004';
+    our $VERSION = '1.0005';
     @ISA         = qw(Exporter);
     @EXPORT      = qw();
     @EXPORT_OK   = qw();
@@ -81,7 +81,7 @@ Win32::MSI::HighLevel - Perl wrapper for Windows Installer API
 
 =head1 VERSION
 
-Version 1.0004
+Version 1.0005
 
 =head1 SYNOPSIS
 
@@ -1145,25 +1145,46 @@ directory table.
 
 =over 4
 
-=item I<-DefaultDir>: optional
-
 =item I<-Directory>: optional
 
 Identifier for the directory entry to create. This identifier may be the name
 of a property set to the full path of the target directory.
 
-=item I<-Diretory_Parent>: required
+=item I<-Directory_Parent>: required
 
-This must be a Directory table Directory column entry or undef. If
--Diretory_Parent is undef or the same value as -Directory the added entry is for
-a root directory. There must only be one root directory in the Directory table.
+This must be a Directory table -Directory column entry or undef. If
+-Diretory_Parent is undef or has the same value as -Directory the added entry is
+for a root directory and the root directory name is specified by -DefaultDir.
+There must only be one root directory in the Directory table.
 
 Except in the case of a root directory entry, the value given for
 -Diretory_Parent must already exist as a -Directory entry in the Directory
 table.
 
+=item I<-DefaultDir>: optional
+
+-DefaultDir provides directory names for the source and target directories for
+this table entry. -target and -source may be used instead of -DefaultDir.
+
+Different target and source directory names may be provided separated by a
+colon:
+
+    [targetname]:[sourcename]
+
+Directory names may be given as [shortName]|[longName] pairs. [longName] may not
+include any of: \ ? | > < : / * "
+
+[shortName] additionally may not include spaces or any of: + , ; = [ ]
+
+A . may be used in place of [targetname] to indicate that the parent directory
+should be used rather than specifying a subdirectory.
+
+If none of -DefaultDir, -target and -source are provided, -DefaultDir is set to
+'.' (use parent directory).
+
 =item I<-target>: optional
 
+The [targetname] part of -DefaultDir.
 =item I<-source>: optional
 
 =back
@@ -1190,11 +1211,13 @@ sub addDirectory {
     } else {
         $params{-target} ||= '';
         $params{-source} ||= '';
-        $params{-source} = '.' unless length $params{-source};
-        $params{-target} = '' if $params{-source} eq $params{-target};
-        $defaultDir = $params{-source};
-        $defaultDir .= ":$params{-target}" if length $params{-target};
+        $params{-target} = '.' if $params{-source} eq $params{-target};
+        $params{-source} = '' unless length $params{-source};
+        $defaultDir = $params{-target};
+        $defaultDir .= ":$params{-source}" if length $params{-source};
     }
+
+    $params{-DefaultDir} = $defaultDir;
 
     # Root is required. writeTables checks that a valid root was provided
     $table->{_root} ||= undef;
@@ -4667,7 +4690,7 @@ sub _buildDirLookup {
 
         my $row = $self->{tables}{Directory}{$Directory};
         my ($targetDir, $sourceDir) =
-            $row->{-DefaultDir} =~ /^(\S+?)(?::(.*))?$/;
+            $row->{-DefaultDir} =~ /^([^:]+)(?::(.*))?$/;
         my $parent = $row->{-Directory_Parent};
 
         $sourceDir ||= $targetDir;
@@ -4701,15 +4724,12 @@ sub _checkId {
 
 
 sub _checkDefaultDir {
-    my $dirname = shift;
+    my ($dir) = @_;
+    my ($target, $source) = split ':', $dir;
 
-    Carp::croak () unless defined $dirname;
-
-    my ($first, $second) = $dirname =~ /(^[^:]+)(?::(.*))?$/;
-
-    _checkFilename ($first, 'Default directory name') unless $first eq '.';
-    _checkFilename ($second, 'Default directory name')
-        if defined $second and $second ne '.';
+    _checkFilename ($target, 'Target directory');
+    _checkFilename ($source, 'Source directory')
+        if defined $source and length $source;
 }
 
 
@@ -4721,14 +4741,14 @@ sub _checkFilename {
 
     $short = '' unless defined $short;
     $type ||= 'Filename';
-    croak "Invalid $type (bad short filename character): $filename"
-        if $short =~ /\Q$badShort/;
-    croak "Invalid $type (bad short filename 8.3 format): $filename"
+    croak "Invalid $type (bad short filename character): '$filename'."
+        if $short =~ /[$badShort]/;
+    croak "Invalid $type (bad short filename 8.3 format): '$filename'."
         if $short !~ /^[^.]{0,8}(?:\.[^.]{0,3})?$/;
-    croak "Invalid $type (short filename must be provided): $filename"
+    croak "Invalid $type (short filename must be provided): '$filename'."
         if !length $short;
-    croak "Invalid $type (bad long filename character): $filename"
-        if defined $long and $long =~ /^\Q$badLong/;
+    croak "Invalid $type (bad long filename character). None of $badLong allowed: '$filename'."
+        if defined $long and $long =~ /[$badLong]/;
 }
 
 

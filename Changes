@@ -45,3 +45,8 @@ Revision history for Perl module Win32::MSI::HighLevel
     - Expose noise level management
     - Fix record management for new rows in _deleteRow
     - Fixed bug RT 48504
+
+1.0004 Mon Sep 21 22:15:30 2009
+    - Correct handling of file name characters. RT #49635
+    - Add unit tests for directory table manipulation
+    - Improve documentation for addDirectory

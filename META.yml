@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:               Win32-MSI-HighLevel
-version:            1.0004
+version:            1.0005
 abstract:           Perl wrapper for Windows Installer API
 author:
     - Peter Jaquiery (grandpa@cpan.org)
