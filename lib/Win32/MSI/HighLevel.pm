@@ -9,7 +9,7 @@ require 5.007003;    # for Digest::MD5
 BEGIN {
     use Exporter ();
     use vars qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
-    our $VERSION = '1.0005';
+    our $VERSION = '1.0006';
     @ISA         = qw(Exporter);
     @EXPORT      = qw();
     @EXPORT_OK   = qw();
@@ -74,14 +74,13 @@ our @EXPORT_OK = qw(
     kReportUpdates
     );
 
-
 =head1 NAME
 
 Win32::MSI::HighLevel - Perl wrapper for Windows Installer API
 
 =head1 VERSION
 
-Version 1.0005
+Version 1.0006
 
 =head1 SYNOPSIS
 
@@ -687,10 +686,28 @@ If the directory is to be used in the CreateFolder table then the file name
 should be omitted and the directory name will be used as the key for the
 component.
 
+=item I<-guidSeed>: optional
+
+Provide an UpgradeCode guid so that a component installer can provide an
+upgraded component for an product installed using a different installer.
+
+The UpgradeCode guid must be the UprgadeCode guid used by the main product
+installer.
+
+I<-guidSeed> would normally be used with I<-requestedId>.
+
+=item I<-KeyPath>: optional
+
+Primary key into either the File, ODBCDataSource or Registry table. This is only
+required for generating a component that installs registry entries and doesn't
+install any files or directories.
+
+Do not use -File and -KeyPath together.
+
 =item I<-requestedId>: optional
 
 Desired id for component. If there exists a component with the same Id already
-then the suggested Id will be used as a base so generate a new Id.
+then the suggested Id will be used as a base to generate a new Id.
 
 =back
 
@@ -702,12 +719,19 @@ sub addComponent {
 
     Win32::MSI::HighLevel::Common::require (\%params,
         qw(-Directory_ -features));
-    Win32::MSI::HighLevel::Common::allow (\%params,
-        qw(-Attributes -Condition -Directory_ -features -File -requestedId));
+    Win32::MSI::HighLevel::Common::allow (
+        \%params,
+        qw(-Attributes -Condition -Directory_ -features -File -KeyPath
+            -requestedId -guidSeed
+            )
+    );
     my $component;
 
     croak "setProduct must be called before a component is added"
         unless exists $self->{prodNamespace} || $self->_genProductCode ();
+
+    croak "Only one of -File and -KeyPath may be used"
+        if exists $params{-File} && exists $params{-KeyPath};
 
     if (exists $params{-requestedId}) {
         $component =
@@ -725,9 +749,12 @@ sub addComponent {
     return $self->{tables}{Component}{lc $component}{-Component}
         if exists $self->{tables}{Component}{lc $component};
 
-    my $guidSeed = $self->getProperty ('UpgradeCode');
+    my $guidSeed =
+        exists $params{-guidSeed}
+        ? $params{-guidSeed}
+        : $self->getProperty ('UpgradeCode');
 
-    $cParams{-Component}   = $component;
+    $cParams{-Component} = $component;
     $cParams{-ComponentId} =
         Win32::MSI::HighLevel::Common::genGUID ("$guidSeed:$component");
     $cParams{-Directory_} = $params{-Directory_};
@@ -735,7 +762,8 @@ sub addComponent {
     $cParams{-Attributes} = $params{-Attributes};
     $cParams{-Attributes} ||= 0;
     $cParams{-Condition} = $params{-Condition};
-    $cParams{-KeyPath} = exists $params{-File} && $params{-File};
+    $cParams{-KeyPath} = $params{-KeyPath} if exists $params{-KeyPath};
+    $cParams{-KeyPath} ||= exists $params{-File} && $params{-File};
 
     $cParams{state} = Win32::MSI::HighLevel::Record::kNew;
     $self->_addComponentRow (\%cParams);
@@ -1026,7 +1054,7 @@ sub addCustomActionJScriptFile {
 
 =head3 addCustomActionVBScriptFragment
 
-Add an inline JScript entry to the custom action table.
+Add an inline VBScript entry to the custom action table.
 
     $msi->addCustomActionVBScriptFragment (
         -Action => 'GetName',
@@ -1075,7 +1103,7 @@ sub addCustomActionVBScriptFragment {
 
 =head3 addCustomActionVBScriptFile
 
-Add JScript entry to the custom action table.
+Add VBScript entry to the custom action table.
 
     $msi->addCustomActionVBScriptFile (
        -Action => 'GetRegString',
@@ -1083,7 +1111,7 @@ Add JScript entry to the custom action table.
        -file => 'vercheck.vbs',
        );
 
-This adds a JScript custom action row.
+This adds a VBScript custom action row.
 
 =over 4
 
@@ -1093,7 +1121,7 @@ Id for the custom action.
 
 =item I<-call>: optional
 
-A fragment (255 characters or fewer) of JScript to be executed after the
+A fragment (255 characters or fewer) of VBScript to be executed after the
 script has been loaded.
 
 Watch out for \ characters in file paths. You will need \\\\ to get a single
@@ -1185,6 +1213,7 @@ If none of -DefaultDir, -target and -source are provided, -DefaultDir is set to
 =item I<-target>: optional
 
 The [targetname] part of -DefaultDir.
+
 =item I<-source>: optional
 
 =back
@@ -1593,7 +1622,7 @@ L</addFile> generates the required short file name.
 =item I<-forceNewComponent>: optional
 
 If present this parameter forces a new component to be generated. If the value
-is scalar it is used as a suggested component name otherwise an array ref
+is a string it is used as a suggested component name otherwise an array ref
 containing a list of parameters to be passed to addComponent is expected.
 
 If a parameter list is provided it may be empty and required parameters for
@@ -1611,7 +1640,13 @@ Specify the language ID or IDs for the file. If more than one ID is appropriate
 use a comma separated list.
 
 If this parameter is omitted the value '1033' (US English) is used. To specify
-that no ID should be used (for font files for example) us an empty string.
+that no ID should be used (for font files for example) use an empty string.
+
+=item I<-requestedId>: optional
+
+A suggested component name. If the name has been used and the file being
+inserted is not suitable for the existing component a new component name based
+on the requested name will be used.
 
 =item I<-Sequence>: optional
 
@@ -1670,7 +1705,7 @@ sub addFile {
         \%params, qw(
             -condition
             -featureId -fileId -fileName -forceNewComponent -isKey -Language
-            -Sequence -skipDupAdd -sourceDir -targetDir -Version )
+            -requestedId -Sequence -skipDupAdd -sourceDir -targetDir -Version )
     );
 
     croak
@@ -1714,6 +1749,8 @@ sub addFile {
 
     CORE::close $testFile;
 
+    $params{-targetDir} = $params{-sourceDir} if !defined $params{-targetDir};
+
     $params{-directory_} = $self->getTargetDirID ($params{-targetDir})
         if not exists $params{-directory_};
 
@@ -1725,11 +1762,14 @@ sub addFile {
         my @comps = values %{$self->{tables}{Component}};
 
         for my $comp (@comps) {
-            next unless ref $comp;
-            next unless $comp->{-Directory_} eq $params{-directory_};
+            next if !ref $comp;
+            next if $comp->{-Directory_} ne $params{-directory_};
             next
                 if exists $params{-condition}
                     and $comp->{-Condition} ne $params{-condition};
+            next
+                if exists $params{-requestedId}
+                    and $comp->{-Component} ne $params{-requestedId};
 
             $component = $comp->{-Component};
             last;
@@ -1757,6 +1797,8 @@ sub addFile {
             } else {
                 $cParams{-requestedId} = $params{-forceNewComponent};
             }
+        } elsif (exists $params{-requestedId}) {
+            $cParams{-requestedId} = $params{-requestedId};
         }
 
         $cParams{-Condition} = $params{-condition}
@@ -1776,32 +1818,6 @@ sub addFile {
     $params{-Sequence}   = '';
     $params{-Language}   = '1033' unless exists $params{-Language};
     return $self->_addFileRow (\%params);
-}
-
-
-=head3 addFiles
-
-L</addFiles> is not implemented. Use multiple calls to L</addFile> instead.
-
-There are design issues concerning the implemenation of L</addFiles> and the
-management of components. A mechanism for handling exclusions should also be
-provided.
-
-=cut
-
-sub addFiles {
-    my ($self, %params) = @_;
-
-    Win32::MSI::HighLevel::Common::listize (\%params, qw(file));
-    Win32::MSI::HighLevel::Common::require (\%params,
-        qw(-files -featureId -sourceDir -targetDir));
-    Win32::MSI::HighLevel::Common::allow (\%params,
-        qw(-files -featureId -source -targetDir));
-
-    croak
-        "Feature $params{-featureId} must be provided before files (@{$params{-files}}) are added for it"
-        unless exists $self->{features}{$params{-featureId}};
-    croak "Implementation incomplete.";
 }
 
 
@@ -2037,6 +2053,7 @@ sub addMedia {
     Win32::MSI::HighLevel::Common::allow (\%params,
         qw(-Cabinet -DiskId -DiskPrompt -LastSequence -Source -VolumeLabel));
 
+    $params{-Cabinet} = '' if !defined $params{-Cabinet};
     return $self->_addMediaRow (\%params);
 }
 
@@ -2094,9 +2111,19 @@ Add a registry entry.
 
 =over 4
 
-=item I<-Component_>: required
+=item I<-Component_>: optional
 
 Id of the component controling installation of the registry value.
+
+This parameter is required unless I<-genRegKey> is used.
+
+=item I<-genRegKey>: optional
+
+Generates the registry table key and returns it, but doesn't generate the table
+entry.
+
+This option is required to solve a chicken and egg problem with components that
+use a Registry table key for their KeyPath.
 
 =item I<-Key>: required
 
@@ -2119,14 +2146,21 @@ sub addRegistry {
     my ($self, %params) = @_;
     my $table = $self->{tables}{Registry} ||= {};
 
-    Win32::MSI::HighLevel::Common::require (\%params,
-        qw(-Component_ -Key -Root -Value));
+    Win32::MSI::HighLevel::Common::require (\%params, qw(-Key -Root -Value));
     Win32::MSI::HighLevel::Common::allow (\%params,
-        qw(-Component_ -Key -Name -Root -Value));
-    $params{-Name} ||= '';
-    $params{-Registry} =
+        qw(-Component_ -genRegKey -Key -Name -Root -Value));
+
+    Carp::croak "-Component_ is required unless -genRegKey is used"
+        if !(exists $params{-Component_} || exists $params{-genRegKey});
+
+    my $regId =
         $self->_getUniqueID ("$params{-Root}/$params{-Key}/$params{-Name}",
         'Registry');
+
+    return $regId if exists $params{-genRegKey};
+
+    $params{-Name} ||= '';
+    $params{-Registry} = $regId;
 
     return $self->_addRegistryRow (\%params);
 }
@@ -2807,6 +2841,17 @@ sub createCabs {
     my @files = sort {$a->[0] cmp $b->[0]}
         map {[$fileTable->{$_}{-Component_}, $_]}
         grep {ref $fileTable->{$_}} keys %$fileTable;
+
+    if (!@files) {
+        # Add an empty media table entry
+        $self->addMedia (
+            -DiskId       => 1,
+            -LastSequence => 1
+        );
+
+        return;
+    }
+
     my $lastComponent = $files[0][0];
     my $sequence      = 1;
     my $cabDFF        = "$self->{-workRoot}\\cab.dff";
@@ -3357,7 +3402,7 @@ sub getComponentIdFromFileId {
 =head3 getComponentIdForDirId
 
 Return the component Id for the component that has a null KeyPath and a
-Directory_ value matching the directoty id passed in.
+Directory_ value matching the directory id passed in.
 
     my %entry = getComponentIdForDirId (-Directory => 'Wibble', -features => ['Complete']);
 
@@ -3958,8 +4003,8 @@ sub registerExtension {
     croak
         "An -IconIndex and either a -iconFile or -Icon_ parameter must be provided if any are provided"
         unless Win32::MSI::HighLevel::Common::noneOf (\%params,
-                qw(-iconFile -IconIndex -Icon_))
-            or exists $params{-IconIndex}
+        qw(-iconFile -IconIndex -Icon_))
+        or exists $params{-IconIndex}
         && 1 ==
         Win32::MSI::HighLevel::Common::someOf (\%params, qw(-iconFile -Icon_));
 
@@ -3991,7 +4036,12 @@ sub registerExtension {
 
 Set various product related information.
 
-    $msi->setProperty (-Language => 1033, -Name => 'Wibble', -Version => '1.0.0', =Manufacturer => 'Wibble Mfg. Co.');
+    $msi->setProduct (
+        -Language => 1033,
+        -Name => 'Wibble',
+        -Version => '1.0.0',
+        -Manufacturer => 'Wibble Mfg. Co.'
+        );
 
 For a new installer this should be called before any addComponent calls are made
 as information from the product details is used to generate information required
@@ -4032,7 +4082,7 @@ version of a product to be upgraded interchangeably.
 
 Do not include version information in -Name if you rely on the default
 UpgradeCode GUID generation unless the version information is invariant across
-all product version you expect to be able to upgrade. For most upgrade purposes
+all product versions you expect to be able to upgrade. For most upgrade purposes
 this means that including a major version number in the name is ok, but
 including a minor version number is not.
 
@@ -4747,7 +4797,8 @@ sub _checkFilename {
         if $short !~ /^[^.]{0,8}(?:\.[^.]{0,3})?$/;
     croak "Invalid $type (short filename must be provided): '$filename'."
         if !length $short;
-    croak "Invalid $type (bad long filename character). None of $badLong allowed: '$filename'."
+    croak
+        "Invalid $type (bad long filename character). None of $badLong allowed: '$filename'."
         if defined $long and $long =~ /[$badLong]/;
 }
 
@@ -4760,9 +4811,9 @@ sub _deleteRow {
         Win32::MSI::HighLevel::Record::kNew)
     {
         # Schedule DB row for deletion
-    $self->{tables}{$name}{$key}{state} =
-        Win32::MSI::HighLevel::Record::kDelete;
-    $self->{tables}{$name}{"*$key"} = {%{$self->{tables}{$name}{$key}}};
+        $self->{tables}{$name}{$key}{state} =
+            Win32::MSI::HighLevel::Record::kDelete;
+        $self->{tables}{$name}{"*$key"} = {%{$self->{tables}{$name}{$key}}};
     }
     delete $self->{tables}{$name}{$key};
 
@@ -4823,11 +4874,14 @@ sub _genLu {
 
 
 sub _genProductCode {
-    my $self         = shift;
+    my ($self) = @_;
+    my $manufacturer = $self->getProperty ('Manufacturer');
     my $language     = $self->getProperty ('ProductLanguage');
     my $name         = $self->getProperty ('ProductName');
     my $version      = $self->getProperty ('ProductVersion');
-    my $manufacturer = $self->getProperty ('Manufacturer');
+
+    return
+        if grep {!defined} ($manufacturer, $language, $name, $version);
 
     $self->{prodNamespace} = "$manufacturer/$language/$name/$version";
 
@@ -4858,7 +4912,8 @@ sub _getFullFilePath {
 sub _getUniqueID {
 
     # $context should be the bare table name if the id is a table key (eg 'File')
-    my ($self, $id, $context, $length, $extra) = @_;
+    my ($self, $reqId, $context, $length, $extra) = @_;
+    my $id = $reqId;
     my $key;
 
     return $self->{id_keyToId}{$context}{$key}
@@ -4868,6 +4923,12 @@ sub _getUniqueID {
     $id =~ tr/a-zA-Z0-9_.//cd;
     $id =~ s/^[\d.]+//;
     $id = substr $id, 0, $length;
+
+    Carp::croak "'$reqId' can not be used as an id.\n" .
+        "   An id must only contain letters, digits, _ and . characters and\n" .
+        "   must start with a letter. Character not allowed in an id have\n" .
+        "   been removed from requested id"
+        if ! length $id;
 
     my $lcId = lc $id;
 

@@ -9,12 +9,12 @@ use Win32::MSI::HighLevel::Summary;
 use Carp qw(verbose);
 
 use constant kManufacturer => 'Home installers inc.';
-use constant kSourceFolder    => '.\\';
+use constant kSourceFolder => '.\\';
 use constant kDefVersion   => '1.0.0';
 use constant kDefInFile    => 'InstallerTemplate.msi';
 use constant kDefOutFile   => 'InstallMyself.msi';
 use constant kDefProduct   => 'Self Installer';
-use constant kDefTarget   => 'InstallMyself';
+use constant kDefTarget    => 'InstallMyself';
 use constant kDefLanguage  => 0x0409;
 
 my $gui = 0;
@@ -25,7 +25,7 @@ exit 0;
 
 sub main {
     my $sourceFolder = kSourceFolder;
-    my $version = kDefVersion;
+    my $version      = kDefVersion;
 
     for (1 .. $#ARGV) {
         ShowHelp () if $ARGV[$_] =~ /[\/-\\][hH?]/;
@@ -46,7 +46,7 @@ sub main {
 
     $sourceFolder =~ s/\\$//;
 
-    my $main     = bless {
+    my $main = bless {
         languageCode => kDefLanguage,
         manufacturer => kManufacturer,
         noisy        => 2,
@@ -57,9 +57,9 @@ sub main {
         targetFolder => kDefTarget,
         templateFile => "$sourceFolder\\" . kDefInFile,
         version      => $version,
-        };
+    };
 
-    $main->createTemplate ();
+    $main->createTemplate      ();
     $main->build               ();
     $main->updateSummaryStream ($main->{outfile});    # Update the package code GUID
     $main = 0;
@@ -68,7 +68,7 @@ sub main {
 
 sub createTemplate {
     # Build template file from exported tables
-    my $self= shift;
+    my $self = shift;
 
     # First remove any previous version
     unlink $self->{templateFile} if -f $self->{templateFile};
@@ -77,7 +77,7 @@ sub createTemplate {
     my $msi = Win32::MSI::HighLevel->new (
         -file => $self->{templateFile},
         -mode => Win32::MSI::HighLevel::Common::kMSIDBOPEN_CREATE,
-        );
+    );
 
     # Fetch list of files from tables sub directory
     opendir my $dirScan, 'tables';
@@ -88,7 +88,7 @@ sub createTemplate {
     for my $file (@tableFiles) {
         next unless -f "tables\\$file" and $file =~ /(.*)\.idt$/;
 
-        my $table = $1; # Get the table name
+        my $table = $1;    # Get the table name
         my $result = $msi->importTable ($table, "$self->{sourceFolder}\\tables");
 
         print "Importing $table\n";
@@ -132,7 +132,7 @@ sub build {
         -mode       => Win32::MSI::HighLevel::Common::kMSIDBOPEN_DIRECT,
         -sourceRoot => $self->{sourceFolder},
         -targetRoot => $self->{targetPath},
-        );
+    );
 
     $self->{msi}->populateTables ();
     $self->{msi}->setProduct (
@@ -140,17 +140,17 @@ sub build {
         -Name         => $self->{productName},
         -Version      => $self->{version},
         -Manufacturer => $self->{manufacturer},
-        );
+    );
 
     # Retreive various properties or set to defaults
     $self->{ProductName} = $self->{msi}->getProperty ('ProductName')
         unless exists $self->{ProductName}
-        or not defined $self->{msi}->getProperty ('ProductName');
+            or not defined $self->{msi}->getProperty ('ProductName');
     $self->{ProductName} ||= $self->{productName};
 
     $self->{Manufacturer} = $self->{msi}->getProperty ('Manufacturer')
         unless exists $self->{Manufacturer}
-        or not defined $self->{msi}->getProperty ('Manufacturer');
+            or not defined $self->{msi}->getProperty ('Manufacturer');
     $self->{Manufacturer} ||= $self->{manufacturer};
 
     # Add launch conditions
@@ -158,7 +158,7 @@ sub build {
         -Condition => 'VersionMsi >= "2.0"',
         -Description =>
             '[ProductName] requires Windows Installer 2.0 or later.',
-            );
+    );
 
     # Set default target directory
     my $costInitializeStep =
@@ -169,27 +169,27 @@ sub build {
         -Action    => 'SetDefTargetDir',
         -Condition => 'TARGETDIR=""',
         -Sequence  => $costInitializeStep->{-Sequence} - 10,
-        );
+    );
     $self->{msi}->addCustomAction (
         -Action => 'SetDefTargetDir',
         -Type   => 51,
         -Source => 'TARGETDIR',
         -Target => "[ProgramFilesFolder][Manufacturer]",
-        );
+    );
 
     # Set the upgrade code
     $self->{msi}->addProperty (
         -Property => 'UpgradeCode',
         -Value =>
             Win32::MSI::HighLevel::Common::genGUID ($self->{msi}->getProduct ())
-            );
+    );
 
     # Add directories
     $self->{msi}->addDirectory (
         -Directory        => 'TARGETDIR',
         -Directory_Parent => undef,
         -DefaultDir       => 'SourceDir'
-        ) unless $self->{msi}->haveDirId ('TARGETDIR');
+    ) unless $self->{msi}->haveDirId ('TARGETDIR');
 
     # Add features
     my $featureDir = $self->{msi}->getTargetDirID ($self->{targetFolder}, 1);
@@ -197,7 +197,7 @@ sub build {
         -name       => 'Complete',
         -Title      => 'Full install',
         -Directory_ => $featureDir
-        );
+    );
     $self->{featureLU}{Complete} = $featureFull;
 
     # Add files
@@ -205,37 +205,37 @@ sub build {
 
     # Add licence file text
     @ARGV = "$self->{sourceFolder}\\LICENSE.rtf";
-    my $text = do { local $/; join '', <> };
+    my $text = do {local $/; join '', <>};
 
     $self->{msi}->setTableEntryField (
         'Control',
         {-Dialog_ => 'LicenseAgreementDlg', -Control => 'AgreementText'},
         {-Text    => $text}
-        );
+    );
 
     # Add readme file text
     @ARGV = "$self->{sourceFolder}\\README.rtf";
-    $text = do { local $\; join '', <> };
+    $text = do {local $\; join '', <>};
     $self->{msi}->setTableEntryField (
         'Control',
         {-Dialog_ => 'Readme_Dialog', -Control => 'ScrollableText'},
         {-Text    => $text}
-        );
+    );
 
     # Add properties pertaining to Add/Remove programs entry
     $self->{msi}->addProperty (
         -Property => 'ARPHELPLINK',
         -Value    => "file:///C:/$self->{targetFolder}/readme.htm",
-        );
+    );
     $self->{msi}->addProperty (-Property => 'ARPNOMODIFY', -Value => '1');
     $self->{msi}->addProperty (
         -Property => 'ARPURLINFOABOUT',
         -Value    => "file:///C:/$self->{targetFolder}/readme.htm",
-        );
+    );
     $self->{msi}->addProperty (
         -Property => 'ARPURLUPDATEINFO',
         -Value    => "file:///C:/$self->{targetFolder}/readme.htm"
-        );
+    );
 
     # Populate the .msi file
     $self->{msi}->createCabs  ();
@@ -255,13 +255,13 @@ sub updateSummaryStream {
     my $msi = Win32::MSI::HighLevel->new (
         -file => $file,
         -mode => Win32::MSI::HighLevel::Common::kMSIDBOPEN_TRANSACT
-        );
+    );
     my $summary = Win32::MSI::HighLevel::Summary->new ($msi);
     my $guid = uc Win32::Guidgen::create ();
 
     $summary->setProperty ('PID_REVNUMBER', $guid);
-    $summary->setProperty ('PID_SUBJECT', $self->{productName});
-    $summary->setProperty ('PID_AUTHOR', $self->{manufacturer});
+    $summary->setProperty ('PID_SUBJECT',   $self->{productName});
+    $summary->setProperty ('PID_AUTHOR',    $self->{manufacturer});
     $summary->setProperty ('PID_KEYWORDS', "$self->{manufacturer},$self->{productName}");
     $summary->setProperty ('PID_COMMENTS', "This installer database installs $self->{productName}");
     $msi->commit ();
@@ -307,7 +307,7 @@ sub insertFiles {
     $mapping->{exclude} = "''.*" if !length $mapping->{exclude};
     $mapping->{destination} = [$mapping->{destination}]
         if exists $mapping->{destination}
-        and 'ARRAY' ne ref $mapping->{destination};
+            and 'ARRAY' ne ref $mapping->{destination};
 
     my $source = exists $mapping->{source} ? "$mapping->{source}$subpath" : undef;
     my $destFolder = fixPath ("$mapping->{target}$subpath");
@@ -334,7 +334,7 @@ sub insertFiles {
 
             my $sourcePath = fixPath ("$source\\$file");
             my $target     = fixPath ("$destFolder\\$file");
-            my $lcTarget     = lc $target;
+            my $lcTarget   = lc $target;
             my $lcDestFolder = lc $destFolder;
 
             if (exists $self->{installed}{$lcTarget}
@@ -365,7 +365,7 @@ WARN
                 -targetDir  => $destFolder,
                 -Language   => $self->{languageCode},
                 -skipDupAdd => $mapping->{skipDupAdd},
-                );
+            );
 
             $keyComponent ||= $self->{msi}->getComponentIdFromFileId ($newFile);
 
@@ -392,7 +392,7 @@ WARN
                         -target    => $target,
                         -location  => $dest,
                         -featureId => $featureId,
-                        );
+                    );
 
                     $params{-Description} = $mapping->{description}
                         if exists $mapping->{description};
@@ -432,7 +432,7 @@ WARN
                 -folderTarget => $destFolder,
                 -location     => $dest,
                 -featureId    => $featureId,
-                );
+            );
 
             $params{-Description} = $mapping->{description}
                 if exists $mapping->{description};

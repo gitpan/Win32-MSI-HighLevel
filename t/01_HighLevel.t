@@ -13,15 +13,18 @@ Test Win32::MSI::HighLevel
 =cut
 
 BEGIN {
-    use lib '../../..'; # For development testing
+    use lib '../../..';    # For 'CPAN' folder layout
     use Win32::API;
 
     if ($^O ne 'MSWin32') {
-        plan( skip_all => "Windows only module. Tests irrelevant on $^O" );
-    } elsif (! Win32::API->new ("kernel32", 'LoadLibrary', "P", 'I')->Call ('msi')) {
-        plan( skip_all => "msi.dll required - Windows Installer must be installed" );
+        plan (skip_all => "Windows only module. Tests irrelevant on $^O");
+    } elsif (
+        !Win32::API->new ("kernel32", 'LoadLibrary', "P", 'I')->Call ('msi'))
+    {
+        plan (skip_all =>
+                "msi.dll required - Windows Installer must be installed");
     } else {
-        plan(tests => 54);
+        plan (tests => 84);
     }
 
     use_ok ("Win32::MSI::HighLevel");
@@ -31,62 +34,58 @@ my $filename = 'delme.msi';
 
 # Basic create and open database tests.
 unlink $filename;
-ok(
-    my $msi = Win32::MSI::HighLevel->new(
+ok (
+    my $msi = Win32::MSI::HighLevel->new (
         -file => $filename,
-        -mode => Win32::MSI::HighLevel::Common::kMSIDBOPEN_CREATE
+        -mode => Win32::MSI::HighLevel::Common::kMSIDBOPEN_CREATE ()
     ),
     'Create a new .msi file in transacted mode'
-);
-$msi = 0; # Destroy object
+   );
+$msi = 0;    # Destroy object
 
 unlink $filename;
-ok(
-    $msi = Win32::MSI::HighLevel->new(
+ok (
+    $msi = Win32::MSI::HighLevel->new (
         -file => $filename,
-        -mode => Win32::MSI::HighLevel::Common::kMSIDBOPEN_CREATEDIRECT
+        -mode => Win32::MSI::HighLevel::Common::kMSIDBOPEN_CREATEDIRECT ()
     ),
     'Create a new .msi file in direct mode'
-);
-$msi = 0; # Destroy object
+   );
+$msi = 0;    # Destroy object
 
-ok(
-    $msi = Win32::MSI::HighLevel->new(
+ok (
+    $msi = Win32::MSI::HighLevel->new (
         -file => $filename,
-        -mode => Win32::MSI::HighLevel::Common::kMSIDBOPEN_DIRECT
+        -mode => Win32::MSI::HighLevel::Common::kMSIDBOPEN_DIRECT ()
     ),
     'Open existing .msi file in direct mode'
-);
-$msi = 0; # Destroy object
+   );
+$msi = 0;    # Destroy object
 
-ok(
-    $msi = Win32::MSI::HighLevel->new(
+ok (
+    $msi = Win32::MSI::HighLevel->new (
         -file => $filename,
-        -mode => Win32::MSI::HighLevel::Common::kMSIDBOPEN_READONLY
+        -mode => Win32::MSI::HighLevel::Common::kMSIDBOPEN_READONLY ()
     ),
     'Open existing .msi file in read only mode'
-);
-$msi = 0; # Destroy object
+   );
+$msi = 0;    # Destroy object
 
-ok(
-    $msi = Win32::MSI::HighLevel->new(
+ok (
+    $msi = Win32::MSI::HighLevel->new (
         -file => $filename,
-        -mode => Win32::MSI::HighLevel::Common::kMSIDBOPEN_TRANSACT
+        -mode => Win32::MSI::HighLevel::Common::kMSIDBOPEN_TRANSACT ()
     ),
     'Open existing .msi file in transacted mode'
-);
+   );
 
 print "Create a Feature table, populate it, and check contents\n";
-is(
-    'Feature',
-    $msi->createTable( -table => 'Feature' ),
-    'Create Feature table'
-);
-is(
+is ('Feature', $msi->createTable (-table => 'Feature'), 'Create Feature table');
+is (
     'Complete',
-    $msi->addFeature( -name => 'Complete', -Title => 'Full install' ),
+    $msi->addFeature (-name => 'Complete', -Title => 'Full install'),
     'Add Complete feature to Feature table'
-);
+   );
 mustDie (
     sub {$msi->addFeature ();},
     'Win32::MSI::HighLevel::addFeature requires a -name parameter',
@@ -96,7 +95,7 @@ ok ($msi->writeTables (), 'Write updated tables to disk');
 
 is (0, $msi->exportTable ('Feature', 'Tables'), 'Export Feature table');
 
-checkTableEntry(
+checkTableEntry (
     "Feature\tFeature_Parent\tTitle\tDescription\tDisplay\tLevel\tDirectory_\tAttributes",
     "s38\tS38\tL64\tL255\tI2\ti2\tS72\ti2",
     "Feature\tFeature",
@@ -104,16 +103,16 @@ checkTableEntry(
 );
 
 print "Create a Property table, populate it, and check contents\n";
-is(
+is (
     'Property',
-    $msi->createTable( -table => 'Property' ),
+    $msi->createTable (-table => 'Property'),
     'Create Property table'
-);
-is(
+   );
+is (
     'Wibble',
-    $msi->addProperty( -Property => 'Wibble', -Value => 'wobble' ),
+    $msi->addProperty (-Property => 'Wibble', -Value => 'wobble'),
     'Add Wibble property to Property table'
-);
+   );
 mustDie (
     sub {$msi->addProperty ();},
     'Win32::MSI::HighLevel::addProperty requires a -Property parameter',
@@ -122,46 +121,42 @@ mustDie (
 ok ($msi->writeTables (), 'Write updated tables to disk');
 is (0, $msi->exportTable ('Property', 'Tables'), 'Export Property table');
 
-checkTableEntry(
-    "Property\tValue",
-    "s72\tl0",
-    "Property\tProperty",
-    "Wibble\twobble",
-);
+checkTableEntry ("Property\tValue", "s72\tl0", "Property\tProperty",
+    "Wibble\twobble",);
 
 print "Create a Directory table, populate it, and check contents\n";
-is(
+is (
     'Directory',
-    $msi->createTable( -table => 'Directory' ),
+    $msi->createTable (-table => 'Directory'),
     'Create Directory table'
-);
-is(
+   );
+is (
     'TARGETDIR',
-    $msi->addDirectory(
-        -Directory => 'TARGETDIR',
+    $msi->addDirectory (
+        -Directory        => 'TARGETDIR',
         -Directory_Parent => undef,
-        -DefaultDir => 'SrcDir|SourceDir'
+        -DefaultDir       => 'SrcDir|SourceDir'
     ),
     'Add root entry to Directory table'
-);
-is(
+   );
+is (
     'Root',
-    $msi->addDirectory(
-        -Directory => 'Root',
+    $msi->addDirectory (
+        -Directory        => 'Root',
         -Directory_Parent => 'TARGETDIR',
     ),
     'Add root entry to Directory table'
-);
-is(
+   );
+is (
     'Dobbie',
-    $msi->addDirectory(
+    $msi->addDirectory (
         -Directory_Parent => 'TARGETDIR',
-        -Directory => 'Dobbie',
-        -source => 'wibble~1|Wibble Plonk',
-        -target => 'target~1|Target Dir'
+        -Directory        => 'Dobbie',
+        -source           => 'wibble~1|Wibble Plonk',
+        -target           => 'target~1|Target Dir'
     ),
     'Add root entry to Directory table'
-);
+   );
 mustDie (
     sub {$msi->addDirectory ();},
     'Win32::MSI::HighLevel::addDirectory requires a -Directory_Parent parameter',
@@ -170,8 +165,9 @@ mustDie (
 mustDie (
     sub {
         $msi->addDirectory (
-            -Directory_Parent => 'TARGETDIR', -Directory => 'dir',
-            -DefaultDir => 'short~1|Short/One'
+            -Directory_Parent => 'TARGETDIR',
+            -Directory        => 'dir',
+            -DefaultDir       => 'short~1|Short/One'
         );
     },
     'None of \?|><:/*" allowed: ',
@@ -180,7 +176,7 @@ mustDie (
 ok ($msi->writeTables (), 'Write updated tables to disk');
 is (0, $msi->exportTable ('Directory', 'Tables'), 'Export Directory table');
 
-checkTableEntry(
+checkTableEntry (
     "Directory\tDirectory_Parent\tDefaultDir",
     "s72\tS72\ts255",
     "Directory\tDirectory",
@@ -189,7 +185,79 @@ checkTableEntry(
     "Dobbie\tTARGETDIR\ttarget~1|Target Dir:wibble~1|Wibble Plonk",
 );
 
-$msi = 0; # Destroy object
+$msi = 0;    # Destroy object
+
+unlink $filename;
+
+print "Add a file to an empty database\n";
+unlink $filename;
+ok (
+    $msi = Win32::MSI::HighLevel->new (
+        -file => $filename,
+        -mode => Win32::MSI::HighLevel::Common::kMSIDBOPEN_CREATE ()
+    ),
+    'Create a new .msi file in transacted mode'
+   );
+
+is (
+    $msi->setProduct (
+        -Language => 1033,
+        -Name => 'Wibble',
+        -Version => '1.0.0',
+        -Manufacturer => 'Wibble Mfg. Co.'
+        ),
+    '{5C7C9ADE-0534-43B4-8C04-921F4A846CFA}',
+    'Set product information'
+   );
+
+is (
+    $msi->addFeature (-name => 'DefaultFeature', -Title => 'Default feature'),
+    'DefaultFeature',
+    'Add Default feature to Feature table'
+   );
+
+is (
+    'TARGETDIR',
+    $msi->addDirectory (
+        -Directory        => 'TARGETDIR',
+        -Directory_Parent => undef,
+        -DefaultDir       => 'SrcDir|SourceDir'
+    ),
+    'Add root entry to Directory table'
+   );
+
+is (
+    $msi->addFile (
+        -sourceDir         => './Tables',
+        -fileName          => 'Property.idt',
+        -forceNewComponent => 'Property_idt',
+        -featureId         => 'DefaultFeature'
+    ),
+    'Property.idt',
+    'Add file entry to File table'
+   );
+ok ($msi->writeTables (), 'Write updated tables to disk');
+is (0, $msi->exportTable ('Directory', 'Tables'), 'Export Directory table');
+
+checkTableEntry (
+"Directory\tDirectory_Parent\tDefaultDir",
+"s72\tS72\ts255",
+"Directory\tDirectory",
+"Dir_.\tTARGETDIR\t.~1|.",
+"Dir_Tables\tDir_.\tTables",
+"TARGETDIR\t\tSrcDir|SourceDir",
+);
+
+is (0, $msi->exportTable ('File', 'Tables'), 'Export File table');
+
+checkTableEntry (
+    "File\tComponent_\tFileName\tFileSize\tVersion\tLanguage\tAttributes\tSequence",
+    "s38\ts38\tl128\ti4\tS72\tS20\tI2\ti2",
+    "File\tFile",
+    "Property.idt\tProperty_idt\tProperty.idt\t58\t\t1033\t\t1",
+);
+
+$msi = 0;    # Destroy object
 
 unlink $filename;
 exit;
@@ -203,7 +271,7 @@ sub mustDie {
     my $isRightFail = defined ($@) && $@ =~ /\Q$errMsg\E/;
 
     print defined $@ ? "Error: $@\n" : "Unexpected success. Expected: $errMsg\n"
-        if ! $isRightFail;
+        if !$isRightFail;
     ok ($isRightFail, $name);
 }
 
@@ -222,19 +290,22 @@ sub checkTableEntry {
         push @keys, [$colName, $colIndex] if grep {$colName eq $_} @keyNames;
     }
 
-    ok(
-        ( my $result = open( my $inFile, '<', $tablePath ) ),
+    ok (
+        (my $result = open (my $inFile, '<', $tablePath)),
         "Open $tableName table file for validation"
-    );
-    if (! $result) {
+       );
+    if (!$result) {
         print "Open $tablePath failed: $!\n";
         return;
     }
 
     matchTableLine ("column names for $tableName", scalar <$inFile>, @colNames);
     matchTableLine ("column specs for $tableName", scalar <$inFile>, @colSpecs);
-    matchTableLine
-        ("name and keys for $tableName", scalar <$inFile>, $tableName, @keyNames);
+    matchTableLine (
+        "name and keys for $tableName",
+        scalar <$inFile>,
+        $tableName, @keyNames
+    );
 
     my %tableEntries;
 
@@ -270,6 +341,6 @@ sub addTableEntry {
     my @colValues = split "\t", $line;
     my $keyStr = join " ", @colValues[map {$_->[1]} @keys];
 
-    ok (! exists $entries->{$keyStr}, "Check table rows are unique");
+    ok (!exists $entries->{$keyStr}, "Check table rows are unique");
     $entries->{$keyStr} = $line;
 }

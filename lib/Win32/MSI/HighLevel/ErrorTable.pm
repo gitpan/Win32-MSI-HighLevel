@@ -8,7 +8,7 @@ Win32::MSI::HighLevel::ErrorTable - Helper module for Win32::MSI::HighLevel.
 
 =head1 VERSION
 
-Version 1.0003
+Version 1.0006
 
 =head1 AUTHOR
 
@@ -29,7 +29,7 @@ LICENSE file included with this module.
 BEGIN {
     use Exporter ();
     use vars qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
-    $VERSION     = '1.0005';
+    $VERSION     = '1.0006';
     @ISA         = qw(Exporter);
     @EXPORT      = qw();
     @EXPORT_OK   = qw();
