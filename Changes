@@ -52,10 +52,15 @@ Revision history for Perl module Win32::MSI::HighLevel
     - Improve documentation for addDirectory
 
 1.0006
-    - Remove dependiences on Test::Pod::Coverage and Test::Pod
+    - Remove dependences on Test::Pod::Coverage and Test::Pod
     - Added support for non-file installing installers
     - Various file name and path checking bugs fixed
     - Fixed various POD documentation errors
     - Fixed handling of default target directory in addFile
     - Add check for bogus requested ids in id generation for components etc.
     - Ensure setProduct has been called before the upgrade code GUID is required
+
+1.0007 Thu Sep 15 22:32:00 2011
+    - Allow a file to be specified as the key file when added to a component
+    - Move POD related tests out of distrubition tests
+    - Minor POD tidying

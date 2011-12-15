@@ -4,6 +4,7 @@ use warnings;
 use File::Copy;
 use File::Spec;
 use Win32::Guidgen;
+use lib '../lib';   # For dev folder layout
 use Win32::MSI::HighLevel;
 use Win32::MSI::HighLevel::Summary;
 use Carp qw(verbose);

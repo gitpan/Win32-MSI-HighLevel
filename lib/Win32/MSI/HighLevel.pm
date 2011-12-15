@@ -9,7 +9,7 @@ require 5.007003;    # for Digest::MD5
 BEGIN {
     use Exporter ();
     use vars qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
-    our $VERSION = '1.0006';
+    $Win32::MSI::HighLevel::VERSION = '1.0007';
     @ISA         = qw(Exporter);
     @EXPORT      = qw();
     @EXPORT_OK   = qw();
@@ -32,8 +32,6 @@ use Win32::MSI::HighLevel::ErrorTable;
 use base qw(Win32::MSI::HighLevel::Handle Exporter);
 
 use constant kReportUpdates => 1;
-
-our $VERSION;
 
 our @EXPORT_OK = qw(
     kMSIDBOPEN_READONLY kMSIDBOPEN_TRANSACT kMSIDBOPEN_DIRECT kMSIDBOPEN_CREATE
@@ -80,7 +78,7 @@ Win32::MSI::HighLevel - Perl wrapper for Windows Installer API
 
 =head1 VERSION
 
-Version 1.0006
+Version 1.0007
 
 =head1 SYNOPSIS
 
@@ -198,72 +196,72 @@ use constant msidbComponentAttributesNeverOverwrite    => 0x0080;
 use constant msidbComponentAttributes64bit             => 0x0100;
 
 my $MsiOpenDatabase =
-    Win32::MSI::HighLevel::Common::_def (MsiOpenDatabase => "PPP");
+    Win32::MSI::HighLevel::Common::_def(MsiOpenDatabase => "PPP");
 my $MsiOpenDatabasePIP =
-    Win32::MSI::HighLevel::Common::_def (MsiOpenDatabase => "PIP");
+    Win32::MSI::HighLevel::Common::_def(MsiOpenDatabase => "PIP");
 my $MsiDataBaseCommit =
-    Win32::MSI::HighLevel::Common::_def (MsiDatabaseCommit => "I");
+    Win32::MSI::HighLevel::Common::_def(MsiDatabaseCommit => "I");
 my $MsiDatabaseApplyTransform =
-    Win32::MSI::HighLevel::Common::_def (MsiDatabaseApplyTransform => "IPI");
+    Win32::MSI::HighLevel::Common::_def(MsiDatabaseApplyTransform => "IPI");
 my $MsiGetLastErrorRecord =
-    Win32::MSI::HighLevel::Common::_def (MsiGetLastErrorRecord => "");
+    Win32::MSI::HighLevel::Common::_def(MsiGetLastErrorRecord => "");
 my $MsiFormatRecord =
-    Win32::MSI::HighLevel::Common::_def (MsiFormatRecord => "IIPP");
+    Win32::MSI::HighLevel::Common::_def(MsiFormatRecord => "IIPP");
 my $MsiRecordSetString =
-    Win32::MSI::HighLevel::Common::_def (MsiRecordSetString => "IIP");
+    Win32::MSI::HighLevel::Common::_def(MsiRecordSetString => "IIP");
 my $MsiRecordGetInteger =
-    Win32::MSI::HighLevel::Common::_def (MsiRecordGetInteger => "II");
+    Win32::MSI::HighLevel::Common::_def(MsiRecordGetInteger => "II");
 my $MsiDatabaseExport =
-    Win32::MSI::HighLevel::Common::_def (MsiDatabaseExport => 'IPPP');
+    Win32::MSI::HighLevel::Common::_def(MsiDatabaseExport => 'IPPP');
 my $MsiDatabaseImport =
-    Win32::MSI::HighLevel::Common::_def (MsiDatabaseImport => 'IPP');
+    Win32::MSI::HighLevel::Common::_def(MsiDatabaseImport => 'IPP');
 
 my %systemFolders = (
     AdminToolsFolder => {
         -Directory_Parent => 'TARGETDIR',
         -DefaultDir       => '.:ADMINT~1|Admin Tools'
-    },
+        },
     AppDataFolder => {
         -Directory_Parent => 'TARGETDIR',
         -DefaultDir       => '.:Applic~1|Application Data'
-    },
+        },
     CommonAppDataFolder => {
         -Directory_Parent => 'TARGETDIR',
         -DefaultDir       => '.:APPLIC~1|Application Data'
-    },
+        },
     CommonFiles64Folder => {
         -Directory_Parent => 'TARGETDIR',
         -DefaultDir       => '.:Common~1|Common Files',
-    },
+        },
     CommonFilesFolder => {
         -Directory_Parent => 'TARGETDIR',
         -DefaultDir       => '.:Common~1|Common Files'
-    },
+        },
     DesktopFolder =>
         {-Directory_Parent => 'TARGETDIR', -DefaultDir => '.:Desktop'},
     FavoritesFolder => {
         -Directory_Parent => 'TARGETDIR',
         -DefaultDir       => '.:Favori~1|Favorites'
-    },
+        },
     FontsFolder => {-Directory_Parent => 'TARGETDIR', -DefaultDir => '.:Fonts'},
     LocalAppDataFolder => {
         -Directory_Parent => 'TARGETDIR',
         -DefaultDir       => '.:APPLIC~1|Application Data'
-    },
+        },
     MyPicturesFolder => {
         -Directory_Parent => 'TARGETDIR',
         -DefaultDir       => '.:MYPICT~1|My Pictures'
-    },
+        },
     PersonalFolder =>
         {-Directory_Parent => 'TARGETDIR', -DefaultDir => '.:Personal'},
     ProgramFiles64Folder => {
         -Directory_Parent => 'TARGETDIR',
         -DefaultDir       => '.:Progra~1|Program Files'
-    },
+        },
     ProgramFilesFolder => {
         -Directory_Parent => 'TARGETDIR',
         -DefaultDir       => '.:Progra~1|Program Files'
-    },
+        },
     ProgramMenuFolder =>
         {-Directory_Parent => 'TARGETDIR', -DefaultDir => '.:Programs'},
     SendToFolder =>
@@ -271,7 +269,7 @@ my %systemFolders = (
     StartMenuFolder => {
         -Directory_Parent => 'TARGETDIR',
         -DefaultDir       => '.:StartM~1|Start Menu'
-    },
+        },
     StartupFolder =>
         {-Directory_Parent => 'TARGETDIR', -DefaultDir => '.:Startup'},
     System16Folder =>
@@ -285,7 +283,7 @@ my %systemFolders = (
     WindowsFolder =>
         {-Directory_Parent => 'TARGETDIR', -DefaultDir => '.:Windows'},
     WindowsVolume => {-Directory_Parent => '', -DefaultDir => ''},
-);
+    );
 
 
 =head3 new
@@ -356,27 +354,26 @@ files and folders during the installer build process.
 sub new {
     my ($type, %params) = @_;
     my $class = ref $type || $type;
-    my $hdl = Win32::MSI::HighLevel::Handle->null ();
+    my $hdl = Win32::MSI::HighLevel::Handle->null();
 
-    Win32::MSI::HighLevel::Common::require (\%params, qw(-file));
-    Win32::MSI::HighLevel::Common::allow (\%params,
+    Win32::MSI::HighLevel::Common::require(\%params, qw(-file));
+    Win32::MSI::HighLevel::Common::allow(\%params,
         qw(-file -mode -noisy -workRoot -sourceRoot -targetRoot));
     $params{-mode} ||= Win32::MSI::HighLevel::Common::kMSIDBOPEN_TRANSACT;
-    $params{-file} =
-        File::Spec->canonpath (File::Spec->rel2abs ($params{-file}));
+    $params{-file} = File::Spec->canonpath(File::Spec->rel2abs($params{-file}));
 
     $params{-workRoot} = $params{-sourceRoot} unless exists $params{-workRoot};
 
     if ($params{-mode} =~ /^\d+$/) {
         $params{result} =
-            $MsiOpenDatabasePIP->Call ($params{-file}, $params{-mode}, $hdl);
+            $MsiOpenDatabasePIP->Call($params{-file}, $params{-mode}, $hdl);
     } else {
         $params{result} =
-            $MsiOpenDatabase->Call ($params{-file}, $params{-mode}, $hdl);
+            $MsiOpenDatabase->Call($params{-file}, $params{-mode}, $hdl);
     }
 
     croak "Failed to open database $params{-file} in $class constructor\n"
-        . _errorMsg ()
+        . _errorMsg()
         . "\nCould it be open already?"
         if $params{result};
 
@@ -408,19 +405,19 @@ sub new {
         RegLocator             => \&_addRegLocatorRow,
         Shortcut               => \&_addShortcutRow,
         Upgrade                => \&_addUpgradeRow,
-    };
+        };
 
     $params{-noisy} ||= 0;
 
-    return $class->SUPER::new ($hdl, %params);
+    return $class->SUPER::new($hdl, %params);
 }
 
 
 sub DESTROY {
     my $self = shift;
 
-    $self->commit () if $self->{handle};
-    $self->SUPER::DESTROY ();
+    $self->commit() if $self->{handle};
+    $self->SUPER::DESTROY();
 }
 
 
@@ -430,25 +427,25 @@ sub _errorMsg {
 
     if (!ref $host) {
         $dbHdl = $host if defined $host and $host =~ /^\d+$/;
-    } elsif ($host->isa ('Win32::MSI::HighLevel::Record')) {
+    } elsif ($host->isa('Win32::MSI::HighLevel::Record')) {
         $dbHdl = $host->{view}{highLevel}{handle};
-    } elsif ($host->isa ('Win32::MSI::HighLevel::View')) {
+    } elsif ($host->isa('Win32::MSI::HighLevel::View')) {
         $dbHdl = $host->{highLevel}{handle};
-    } elsif ($host->isa ('Win32::MSI::HighLevel')) {
+    } elsif ($host->isa('Win32::MSI::HighLevel')) {
         $dbHdl = $host->{handle};
     }
 
-    my $errRec = Win32::MSI::HighLevel::Record->fromHandle (
-        $MsiGetLastErrorRecord->Call ());
+    my $errRec = Win32::MSI::HighLevel::Record->fromHandle(
+        $MsiGetLastErrorRecord->Call());
 
     return '' unless $errRec;
 
-    my $errCode = $MsiRecordGetInteger->Call ($errRec->{handle}, 1);
+    my $errCode = $MsiRecordGetInteger->Call($errRec->{handle}, 1);
     my $msg     = '';
-    my $length  = pack ("l", 0);
+    my $length  = pack("l", 0);
 
-    $MsiFormatRecord->Call (0, $errRec->{handle}, $msg, $length);
-    $length = unpack ("l", $length);
+    $MsiFormatRecord->Call(0, $errRec->{handle}, $msg, $length);
+    $length = unpack("l", $length);
     unless ($length++) {
         $errCode = 0;
         return '';
@@ -457,7 +454,7 @@ sub _errorMsg {
     my $size = $length * 2;    # length to UTF-16 siez
 
     $msg = "\0" x $size;
-    return '' if $MsiFormatRecord->Call (0, $errRec->{handle}, $msg, $length);
+    return '' if $MsiFormatRecord->Call(0, $errRec->{handle}, $msg, $length);
 
     # Now UTF-8 encoded, trim to $length
     $msg = substr $msg, 0, $length;
@@ -499,9 +496,9 @@ sub autovivifyTables {
     my ($self, @tables) = @_;
 
     for my $table (@tables) {
-        next if exists $self->{tables}{$table} or _readonlyTable ($table);
+        next if exists $self->{tables}{$table} or _readonlyTable($table);
 
-        $self->createTable (-table => $table);
+        $self->createTable(-table => $table);
     }
 }
 
@@ -518,7 +515,7 @@ as the database should close cleanly when the C<HighLevel> object is destroyed.
 sub close {
     my $self = shift;
 
-    $self->DESTROY ();
+    $self->DESTROY();
 }
 
 
@@ -536,7 +533,7 @@ happens when the database is closed without a commit however.
 sub commit {
     my ($self) = @_;
 
-    $self->{result} = $MsiDataBaseCommit->Call ($self->{handle});
+    $self->{result} = $MsiDataBaseCommit->Call($self->{handle});
     croak "MsiDataBaseCommit failed with error code $self->{result}"
         if $self->{result};
 
@@ -567,11 +564,10 @@ An entry into the Signature table (for a file) or a directory name.
 sub addAppSearch {
     my ($self, %params) = @_;
 
-    Win32::MSI::HighLevel::Common::require (\%params,
-        qw(-Property -Signature_));
-    Win32::MSI::HighLevel::Common::allow (\%params, qw(-Property -Signature_));
+    Win32::MSI::HighLevel::Common::require(\%params, qw(-Property -Signature_));
+    Win32::MSI::HighLevel::Common::allow(\%params, qw(-Property -Signature_));
 
-    $self->_addAppSearchRow (\%params);
+    $self->_addAppSearchRow(\%params);
 }
 
 
@@ -598,14 +594,14 @@ Path to the file to be added on the source system.
 sub addBinaryFile {
     my ($self, %params) = @_;
 
-    Win32::MSI::HighLevel::Common::require (\%params, qw(-Name -file));
-    Win32::MSI::HighLevel::Common::allow (\%params, qw(-Name -file));
+    Win32::MSI::HighLevel::Common::require(\%params, qw(-Name -file));
+    Win32::MSI::HighLevel::Common::allow(\%params, qw(-Name -file));
 
     croak "File $params{-file} must exist during installer generation"
         unless -e $params{-file};
 
     $params{-Data} = $params{-file};
-    $self->_addBinaryRow (\%params);
+    $self->_addBinaryRow(\%params);
 }
 
 
@@ -633,19 +629,20 @@ required by users.
 sub addCab {
     my ($self, %params) = @_;
 
-    Win32::MSI::HighLevel::Common::require (\%params,
+    Win32::MSI::HighLevel::Common::require(\%params,
         qw(-name -file -disk -lastSeq));
-    Win32::MSI::HighLevel::Common::allow (\%params,
+    Win32::MSI::HighLevel::Common::allow(\%params,
         qw(-name -file -disk -lastSeq));
 
-    $self->_addRow ('Cabs', 'Name',
-        {-Name => $params{-name}, -Data => $params{-file}},);
+    $self->_addRow('Cabs', 'Name',
+        {-Name => $params{-name}, -Data => $params{-file}},
+        );
 
-    $self->addMedia (
+    $self->addMedia(
         -Cabinet      => "#Cabs.$params{-name}",
         -DiskId       => $params{-disk},
         -LastSequence => $params{-lastSeq}
-    );
+        );
 }
 
 
@@ -717,46 +714,44 @@ sub addComponent {
     my ($self, %params) = @_;
     my %cParams;
 
-    Win32::MSI::HighLevel::Common::require (\%params,
-        qw(-Directory_ -features));
-    Win32::MSI::HighLevel::Common::allow (
+    Win32::MSI::HighLevel::Common::require(\%params, qw(-Directory_ -features));
+    Win32::MSI::HighLevel::Common::allow(
         \%params,
         qw(-Attributes -Condition -Directory_ -features -File -KeyPath
             -requestedId -guidSeed
             )
-    );
-    my $component;
+            );
+    my $compName;
 
     croak "setProduct must be called before a component is added"
-        unless exists $self->{prodNamespace} || $self->_genProductCode ();
+        unless exists $self->{prodNamespace} || $self->_genProductCode();
 
     croak "Only one of -File and -KeyPath may be used"
         if exists $params{-File} && exists $params{-KeyPath};
 
     if (exists $params{-requestedId}) {
-        $component =
-            $self->_getUniqueID ($params{-requestedId}, "Component", 72);
+        $compName =
+            $self->_getUniqueID($params{-requestedId}, "Component", 72);
     } elsif (exists $params{-File}) {
-        $component = $self->_getUniqueID ($params{-File}, "Component", 72);
+        $compName = $self->_getUniqueID($params{-File}, "Component", 72);
     } elsif (exists $systemFolders{$params{-Directory_}}) {
         croak
             "The system folder $params{-Directory_} may not be used as a Component!";
     } else {
-        $component =
-            $self->_getUniqueID ($params{-Directory_}, "Component", 72);
+        $compName = $self->_getUniqueID($params{-Directory_}, "Component", 72);
     }
 
-    return $self->{tables}{Component}{lc $component}{-Component}
-        if exists $self->{tables}{Component}{lc $component};
+    return $self->{tables}{Component}{lc $compName}{-Component}
+        if exists $self->{tables}{Component}{lc $compName};
 
     my $guidSeed =
         exists $params{-guidSeed}
         ? $params{-guidSeed}
-        : $self->getProperty ('UpgradeCode');
+        : $self->getProperty('UpgradeCode');
 
-    $cParams{-Component} = $component;
+    $cParams{-Component} = $compName;
     $cParams{-ComponentId} =
-        Win32::MSI::HighLevel::Common::genGUID ("$guidSeed:$component");
+        Win32::MSI::HighLevel::Common::genGUID("$guidSeed:$compName");
     $cParams{-Directory_} = $params{-Directory_};
 
     $cParams{-Attributes} = $params{-Attributes};
@@ -766,26 +761,26 @@ sub addComponent {
     $cParams{-KeyPath} ||= exists $params{-File} && $params{-File};
 
     $cParams{state} = Win32::MSI::HighLevel::Record::kNew;
-    $self->_addComponentRow (\%cParams);
+    $self->_addComponentRow(\%cParams);
 
-    $self->addFeatureComponents (
-        -Component_ => $component,
+    $self->addFeatureComponents(
+        -Component_ => $compName,
         -features   => $params{-features}
-    );
+        );
 
     $self->{_flags}{addedCreateFolder} = undef;
     if (!defined $cParams{-KeyPath} or !length $cParams{-KeyPath}) {
-        _genLu (\%cParams, 'CreateFolder');
+        _genLu(\%cParams, 'CreateFolder');
 
         if (!exists $self->{tables}{CreateFolder}{$cParams{-lu}}) {
             # Need to add a CreateFolder table entry
             my %cfParams = (
                 -Directory_ => $params{-Directory_},
-                -Component_ => $component,
-            );
+                -Component_ => $compName,
+                );
 
             $self->{_flags}{addedCreateFolder} =
-                $self->_addCreateFolderRow (\%cfParams);
+                $self->_addCreateFolderRow(\%cfParams);
         }
     }
 
@@ -829,12 +824,12 @@ Condition to be met for the action to be performed.
 sub addControlCondition {
     my ($self, %params) = @_;
 
-    Win32::MSI::HighLevel::Common::require (\%params,
+    Win32::MSI::HighLevel::Common::require(\%params,
         qw(-Dialog_ -Control_ -Action -Condition));
-    Win32::MSI::HighLevel::Common::allow (\%params,
+    Win32::MSI::HighLevel::Common::allow(\%params,
         qw(-Dialog_ -Control_ -Action -Condition));
 
-    return $self->_addControlConditionRow (\%params);
+    return $self->_addControlConditionRow(\%params);
 }
 
 
@@ -863,23 +858,22 @@ features that install the component that creates the folder.
 sub addCreateFolder {
     my ($self, %params) = @_;
 
-    Win32::MSI::HighLevel::Common::require (\%params,
-        qw(-folderPath -features));
-    Win32::MSI::HighLevel::Common::allow (\%params, qw(-folderPath -features));
+    Win32::MSI::HighLevel::Common::require(\%params, qw(-folderPath -features));
+    Win32::MSI::HighLevel::Common::allow(\%params, qw(-folderPath -features));
     $self->{_flags}{addedCreateFolder} = undef;
 
     my %cfParams;
 
-    $cfParams{-Directory_} = $self->getTargetDirID ($params{-folderPath});
-    $cfParams{-Component_} = $self->getComponentIdForDirId (
+    $cfParams{-Directory_} = $self->getTargetDirID($params{-folderPath});
+    $cfParams{-Component_} = $self->getComponentIdForDirId(
         -Directory => $cfParams{-Directory_},
         -features  => $params{-features}
-    );
+        );
 
     return $self->{_flags}{addedCreateFolder}
         if defined $self->{_flags}{addedCreateFolder};
 
-    _genLu (\%cfParams, 'CreateFolder');
+    _genLu(\%cfParams, 'CreateFolder');
 
     my $luKey = lc $cfParams{-lu};
 
@@ -887,7 +881,7 @@ sub addCreateFolder {
         return $self->{tables}{CreateFolder}{$luKey};
     }
 
-    return $self->_addCreateFolderRow (\%cfParams);
+    return $self->_addCreateFolderRow(\%cfParams);
 }
 
 
@@ -932,11 +926,11 @@ Additional information depending on the Type.
 sub addCustomAction {
     my ($self, %params) = @_;
 
-    Win32::MSI::HighLevel::Common::require (\%params, qw(-Action -Type));
-    Win32::MSI::HighLevel::Common::allow (\%params,
+    Win32::MSI::HighLevel::Common::require(\%params, qw(-Action -Type));
+    Win32::MSI::HighLevel::Common::allow(\%params,
         qw(-Action -Type -Source -Target));
 
-    return $self->_addCustomActionRow (\%params);
+    return $self->_addCustomActionRow(\%params);
 }
 
 
@@ -974,18 +968,18 @@ however.
 sub addCustomActionJScriptFragment {
     my ($self, %params) = @_;
 
-    Win32::MSI::HighLevel::Common::require (\%params, qw(-Action -script));
-    Win32::MSI::HighLevel::Common::allow (\%params, qw(-Action -script));
+    Win32::MSI::HighLevel::Common::require(\%params, qw(-Action -script));
+    Win32::MSI::HighLevel::Common::allow(\%params, qw(-Action -script));
 
     $params{-script} =~ s/\[("\w+")\]/Session.Property ($1)/g;
     $params{-script} =~ s/[\n\r]\s*//g;
 
     croak "JScript must be 255 characters or fewer!"
-        unless length ($params{-script}) < 256;
+        unless length($params{-script}) < 256;
     $params{-Target} = $params{-script};
     $params{-Type}   = 37;
 
-    return $self->_addCustomActionRow (\%params);
+    return $self->_addCustomActionRow(\%params);
 }
 
 
@@ -1027,14 +1021,14 @@ Name of the file containing the script to be processed.
 sub addCustomActionJScriptFile {
     my ($self, %params) = @_;
 
-    Win32::MSI::HighLevel::Common::require (\%params, qw(-Action -file));
-    Win32::MSI::HighLevel::Common::allow (\%params, qw(-Action -call -file));
+    Win32::MSI::HighLevel::Common::require(\%params, qw(-Action -file));
+    Win32::MSI::HighLevel::Common::allow(\%params, qw(-Action -call -file));
 
     (my $cleanFile = $params{-file}) =~ s/\W//g;
     my $key;
 
-    $self->_haveUniqueId ($cleanFile, 'CustomAction', 'Script', $key);
-    $self->addBinaryFile (-Name => $key, -file => $params{-file})
+    $self->_haveUniqueId($cleanFile, 'CustomAction', 'Script', $key);
+    $self->addBinaryFile(-Name => $key, -file => $params{-file})
         unless exists $self->{tables}{Binary}{$key};
 
     if (exists $params{-call}) {
@@ -1042,13 +1036,13 @@ sub addCustomActionJScriptFile {
         $params{-call} =~ s/[\n\r]\s*//g;
 
         croak "JScript must be 255 characters or fewer!"
-            unless length ($params{-call}) < 256;
+            unless length($params{-call}) < 256;
         $params{-Target} = $params{-call};
     }
 
     $params{-Type}   = 5;
     $params{-Source} = $key;
-    return $self->_addCustomActionRow (\%params);
+    return $self->_addCustomActionRow(\%params);
 }
 
 
@@ -1086,18 +1080,18 @@ however.
 sub addCustomActionVBScriptFragment {
     my ($self, %params) = @_;
 
-    Win32::MSI::HighLevel::Common::require (\%params, qw(-Action -script));
-    Win32::MSI::HighLevel::Common::allow (\%params, qw(-Action -script));
+    Win32::MSI::HighLevel::Common::require(\%params, qw(-Action -script));
+    Win32::MSI::HighLevel::Common::allow(\%params, qw(-Action -script));
 
     $params{-script} =~ s/\[("\w+")\]/Session.Property ($1)/g;
     $params{-script} =~ s/[\n\r]\s*//g;
 
     croak "VBScript must be 255 characters or fewer!"
-        unless length ($params{-script}) < 256;
+        unless length($params{-script}) < 256;
     $params{-Target} = $params{-script};
     $params{-Type}   = 38;
 
-    return $self->_addCustomActionRow (\%params);
+    return $self->_addCustomActionRow(\%params);
 }
 
 
@@ -1139,14 +1133,14 @@ Name of the file containing the script to be processed.
 sub addCustomActionVBScriptFile {
     my ($self, %params) = @_;
 
-    Win32::MSI::HighLevel::Common::require (\%params, qw(-Action -file));
-    Win32::MSI::HighLevel::Common::allow (\%params, qw(-Action -call -file));
+    Win32::MSI::HighLevel::Common::require(\%params, qw(-Action -file));
+    Win32::MSI::HighLevel::Common::allow(\%params, qw(-Action -call -file));
 
     (my $cleanFile = $params{-file}) =~ s/\W//g;
     my $key;
 
-    $self->_haveUniqueId ($cleanFile, 'CustomAction', 'Script', $key);
-    $self->addBinaryFile (-Name => $key, -file => $params{-file})
+    $self->_haveUniqueId($cleanFile, 'CustomAction', 'Script', $key);
+    $self->addBinaryFile(-Name => $key, -file => $params{-file})
         unless exists $self->{tables}{Binary}{$key};
 
     if (exists $params{-call}) {
@@ -1154,13 +1148,13 @@ sub addCustomActionVBScriptFile {
         $params{-call} =~ s/[\n\r]\s*//g;
 
         croak "VBScript must be 255 characters or fewer!"
-            unless length ($params{-call}) < 256;
+            unless length($params{-call}) < 256;
         $params{-Target} = $params{-call};
     }
 
     $params{-Type}   = 6;
     $params{-Source} = $key;
-    return $self->_addCustomActionRow (\%params);
+    return $self->_addCustomActionRow(\%params);
 }
 
 
@@ -1224,8 +1218,8 @@ sub addDirectory {
     my ($self, %params) = @_;
     my $table = $self->{tables}{Directory} ||= {};
 
-    Win32::MSI::HighLevel::Common::require (\%params, qw(-Directory_Parent));
-    Win32::MSI::HighLevel::Common::allow (\%params,
+    Win32::MSI::HighLevel::Common::require(\%params, qw(-Directory_Parent));
+    Win32::MSI::HighLevel::Common::allow(\%params,
         qw(-DefaultDir -Directory -Directory_Parent -target -source));
 
     croak "Root directory already supplied (only one allowed): $table->{_root}"
@@ -1270,7 +1264,7 @@ sub addDirectory {
             and !exists $table->{lc $params{-Directory_Parent}}
             and !exists $systemFolders{$params{-Directory_Parent}};
 
-    return $self->_addDirectoryRow (\%params);
+    return $self->_addDirectoryRow(\%params);
 }
 
 =head3 addDirPath
@@ -1334,8 +1328,8 @@ sub addDirPath {
     my ($self, %params) = @_;
     my $dirs = $self->{tables}{Directory} ||= {};
 
-    Win32::MSI::HighLevel::Common::require (\%params, qw(-target -source));
-    Win32::MSI::HighLevel::Common::allow (\%params, qw(-target -source));
+    Win32::MSI::HighLevel::Common::require(\%params, qw(-target -source));
+    Win32::MSI::HighLevel::Common::allow(\%params, qw(-target -source));
 
     croak "Implementation incomplete.";
 }
@@ -1352,11 +1346,11 @@ sub addDrLocator {
     my ($self, %params) = @_;
     my $dirs = $self->{tables}{Directory} ||= {};
 
-    Win32::MSI::HighLevel::Common::require (\%params, qw(-Signature_));
-    Win32::MSI::HighLevel::Common::allow (\%params,
+    Win32::MSI::HighLevel::Common::require(\%params, qw(-Signature_));
+    Win32::MSI::HighLevel::Common::allow(\%params,
         qw(-Signature_ -Parent -Path -Depth));
 
-    return $self->_addDrLocator (\%params);
+    return $self->_addDrLocator(\%params);
 }
 
 
@@ -1393,8 +1387,8 @@ arbitary order.
 sub addMsiDriverPackages {
     my ($self, %params) = @_;
 
-    Win32::MSI::HighLevel::Common::require (\%params, qw(-Component));
-    Win32::MSI::HighLevel::Common::allow (\%params,
+    Win32::MSI::HighLevel::Common::require(\%params, qw(-Component));
+    Win32::MSI::HighLevel::Common::allow(\%params,
         qw(-Component -Flags -Sequence));
 
     croak "A valid component Id is required for addMsiDriverPackages"
@@ -1404,7 +1398,7 @@ sub addMsiDriverPackages {
     $params{-Flags}    ||= 0;
     $params{-Sequence} ||= 0;
 
-    return $self->_addMsiDriverPackagesRow (\%params);
+    return $self->_addMsiDriverPackagesRow(\%params);
 }
 
 
@@ -1479,15 +1473,15 @@ sub addFeature {
     my ($self, %params) = @_;
     my $table = $self->{tables}{Feature} ||= {};
 
-    Win32::MSI::HighLevel::Common::require (\%params, qw(-name));
-    Win32::MSI::HighLevel::Common::allow (
+    Win32::MSI::HighLevel::Common::require(\%params, qw(-name));
+    Win32::MSI::HighLevel::Common::allow(
         \%params, qw(
             -Attributes -Description -Directory_ -Display -Feature_Parent -Level
             -name -Title
             )
-    );
+            );
 
-    $params{-Feature} ||= $self->_getUniqueID ($params{-name}, 'Feature', 38);
+    $params{-Feature} ||= $self->_getUniqueID($params{-name}, 'Feature', 38);
     $params{-Level} ||= 3;
 
     if (!exists $params{-Display}) {
@@ -1520,7 +1514,7 @@ sub addFeature {
     $params{-Attributes} ||= 0;
     $params{-Display} ||= 1 unless defined $params{-Feature_Parent};
 
-    return $self->_addFeatureRow (\%params);
+    return $self->_addFeatureRow(\%params);
 }
 
 
@@ -1552,19 +1546,18 @@ sub addFeatureComponents {
     my ($self, %params) = @_;
     my $added;
 
-    Win32::MSI::HighLevel::Common::require (\%params,
-        qw(-Component_ -features));
-    Win32::MSI::HighLevel::Common::allow (\%params, qw(-Component_ -features));
+    Win32::MSI::HighLevel::Common::require(\%params, qw(-Component_ -features));
+    Win32::MSI::HighLevel::Common::allow(\%params, qw(-Component_ -features));
 
     for my $featureId (@{$params{-features}}) {
         my %fcParams;
 
         $fcParams{-Feature_}   = $featureId;
         $fcParams{-Component_} = $params{-Component_};
-        _genLu (\%fcParams, qw(Component_ Feature_));
+        _genLu(\%fcParams, qw(Component_ Feature_));
         next if exists $self->{tables}{FeatureComponents}{lc $fcParams{-lu}};
 
-        ++$added, $self->_addFeatureComponentsRow (\%fcParams)
+        ++$added, $self->_addFeatureComponentsRow(\%fcParams)
             unless exists $self->{lookup}{FeatureComponents}
             {lc "$params{-Component_}/$featureId"};
     }
@@ -1622,7 +1615,7 @@ L</addFile> generates the required short file name.
 =item I<-forceNewComponent>: optional
 
 If present this parameter forces a new component to be generated. If the value
-is a string it is used as a suggested component name otherwise an array ref
+is scalar it is used as a suggested component name otherwise an array ref
 containing a list of parameters to be passed to addComponent is expected.
 
 If a parameter list is provided it may be empty and required parameters for
@@ -1699,31 +1692,31 @@ sub addFile {
     my ($self, %params) = @_;
     my $table = $self->{tables}{File} ||= {};
 
-    Win32::MSI::HighLevel::Common::require (\%params,
+    Win32::MSI::HighLevel::Common::require(\%params,
         qw(-featureId -sourceDir -fileName));
-    Win32::MSI::HighLevel::Common::allow (
+    Win32::MSI::HighLevel::Common::allow(
         \%params, qw(
             -condition
             -featureId -fileId -fileName -forceNewComponent -isKey -Language
             -requestedId -Sequence -skipDupAdd -sourceDir -targetDir -Version )
-    );
+            );
 
     croak
         "Feature $params{-featureId} must be provided before a file ($params{-fileName}) is added for it"
         unless exists $self->{tables}{Feature}{lc $params{-featureId}};
 
-    $self->createTable (-table => 'File') unless exists $self->{tables}{File};
+    $self->createTable(-table => 'File') unless exists $self->{tables}{File};
 
     $params{-sourceDir} =~ s|\\\\$||;
     $params{-path} = "$params{-sourceDir}\\$params{-fileName}";
-    $params{-path} = File::Spec->canonpath ($params{-path});
-    Win32::MSI::HighLevel::Common::croak (
+    $params{-path} = File::Spec->canonpath($params{-path});
+    Win32::MSI::HighLevel::Common::croak(
         "Required file ($params{-path}) does not exist")
         unless -f $params{-path};
 
     $params{-sourceDirRel} =
-        File::Spec->abs2rel ($params{-sourceDir}, $self->{-sourceRoot});
-    $params{-Version} = Win32::GetFileVersion ($params{-path});
+        File::Spec->abs2rel($params{-sourceDir}, $self->{-sourceRoot});
+    $params{-Version} = Win32::GetFileVersion($params{-path});
     if ($params{-skipDupAdd} and !exists $params{-fileId}) {
         my $luKey = lc "$params{-sourceDirRel}\\$params{-fileName}";
 
@@ -1732,15 +1725,15 @@ sub addFile {
     }
 
     open my $testFile, '<:raw', $params{-path}
-        or croak ("Unable to open file $params{-path}: $!");
+        or croak("Unable to open file $params{-path}: $!");
 
     my $header = '';
     read $testFile, $header, 256, 0;    # No test - doesn't matter if read fails
 
     my $isPE = $header =~ /^MZ/;
     if ($isPE) {
-        my $peOffset = substr ($header, 0x3c, 4);
-        $peOffset = unpack ('V', $peOffset);
+        my $peOffset = substr($header, 0x3c, 4);
+        $peOffset = unpack('V', $peOffset);
         seek $testFile, $peOffset, 0;
 
         my $ok = read $testFile, $header, 2;
@@ -1751,13 +1744,20 @@ sub addFile {
 
     $params{-targetDir} = $params{-sourceDir} if !defined $params{-targetDir};
 
-    $params{-directory_} = $self->getTargetDirID ($params{-targetDir})
+    $params{-directory_} = $self->getTargetDirID($params{-targetDir})
         if not exists $params{-directory_};
 
-    my $component;
+    if (exists $params{-fileId}) {
+        $params{-File} = $params{-fileId};
+    } else {
+        $params{-File} =
+            $self->_getUniqueID("$params{-fileName}", 'File', 72,
+            $params{-sourceDirRel});
+    }
+
+    my $compName;
     my $components = $self->{tables}{Component} ||= {};
     if (!$isPE and !exists $params{-forceNewComponent}) {
-
         # Look for suitable existing component
         my @comps = values %{$self->{tables}{Component}};
 
@@ -1771,22 +1771,18 @@ sub addFile {
                 if exists $params{-requestedId}
                     and $comp->{-Component} ne $params{-requestedId};
 
-            $component = $comp->{-Component};
+            # Ignore -isKey for component matching so all files that could be
+            # included in a component are included in a single component keyed
+            # by a specified file.
+
+            $compName = $comp->{-Component};
             last;
         }
     }
 
-    if (exists $params{-fileId}) {
-        $params{-File} = $params{-fileId};
-    } else {
-        $params{-File} =
-            $self->_getUniqueID ("$params{-fileName}", 'File', 72,
-            $params{-sourceDirRel});
-    }
-
     $params{-FileSize} = -s $params{-path};
 
-    if (!defined $component) {
+    if (!defined $compName) {
         # Need to create a new Component table entry
         my %cParams;
         my @wanted = qw(-File );
@@ -1806,18 +1802,25 @@ sub addFile {
 
         $cParams{$_} = $params{$_} for grep {exists $params{$_}} @wanted;
 
-        $component = $self->addComponent (
+        $compName = $self->addComponent(
             %cParams,
             -Directory_ => $params{-directory_},
             -features   => [$params{-featureId}],
-        );
+            );
     }
 
-    $params{-Component_} = $component;
-    $params{-FileName}   = $self->_longAndShort ($params{-fileName});
+    my $compRef = $self->{tables}{Component}{lc $compName};
+
+    if ($params{-isKey} && $compRef->{-KeyPath} ne $params{-File}) {
+        my $compTable = $self->{tables}{Component};
+        $compRef->{-KeyPath} = $params{-File};
+    }
+
+    $params{-Component_} = $compName;
+    $params{-FileName}   = $self->_longAndShort($params{-fileName});
     $params{-Sequence}   = '';
     $params{-Language}   = '1033' unless exists $params{-Language};
-    return $self->_addFileRow (\%params);
+    return $self->_addFileRow(\%params);
 }
 
 
@@ -1860,7 +1863,7 @@ sub addIconFile {
 
     my %params = (-Data => $file, -Name => $name);
 
-    $self->_addIconRow (\%params);
+    $self->_addIconRow(\%params);
     return $name;
 }
 
@@ -1905,11 +1908,11 @@ Sequence position for execution of this action.
 sub addInstallExecuteSequence {
     my ($self, %params) = @_;
 
-    Win32::MSI::HighLevel::Common::require (\%params, qw(-Action -Sequence));
-    Win32::MSI::HighLevel::Common::allow (\%params,
+    Win32::MSI::HighLevel::Common::require(\%params, qw(-Action -Sequence));
+    Win32::MSI::HighLevel::Common::allow(\%params,
         qw(-Action -Condition -Sequence));
 
-    return $self->_addInstallExecuteSequenceRow (\%params);
+    return $self->_addInstallExecuteSequenceRow(\%params);
 }
 
 
@@ -1948,11 +1951,11 @@ Sequence position for execution of this action.
 sub addInstallUISequence {
     my ($self, %params) = @_;
 
-    Win32::MSI::HighLevel::Common::require (\%params, qw(-Action -Sequence));
-    Win32::MSI::HighLevel::Common::allow (\%params,
+    Win32::MSI::HighLevel::Common::require(\%params, qw(-Action -Sequence));
+    Win32::MSI::HighLevel::Common::allow(\%params,
         qw(-Action -Condition -Sequence));
 
-    return $self->_addInstallUISequenceRow (\%params);
+    return $self->_addInstallUISequenceRow(\%params);
 }
 
 
@@ -1988,12 +1991,11 @@ Error text shown if the launch condition evaluates false.
 sub addLaunchCondition {
     my ($self, %params) = @_;
 
-    Win32::MSI::HighLevel::Common::require (\%params,
+    Win32::MSI::HighLevel::Common::require(\%params,
         qw(-Condition -Description));
-    Win32::MSI::HighLevel::Common::allow (\%params,
-        qw(-Condition -Description));
+    Win32::MSI::HighLevel::Common::allow(\%params, qw(-Condition -Description));
 
-    return $self->_addLaunchConditionRow (\%params);
+    return $self->_addLaunchConditionRow(\%params);
 }
 
 
@@ -2048,13 +2050,12 @@ sub addMedia {
     my ($self, %params) = @_;
     my $table = $self->{tables}{Media} ||= {};
 
-    Win32::MSI::HighLevel::Common::require (\%params,
-        qw(-DiskId -LastSequence));
-    Win32::MSI::HighLevel::Common::allow (\%params,
+    Win32::MSI::HighLevel::Common::require(\%params, qw(-DiskId -LastSequence));
+    Win32::MSI::HighLevel::Common::allow(\%params,
         qw(-Cabinet -DiskId -DiskPrompt -LastSequence -Source -VolumeLabel));
 
     $params{-Cabinet} = '' if !defined $params{-Cabinet};
-    return $self->_addMediaRow (\%params);
+    return $self->_addMediaRow(\%params);
 }
 
 
@@ -2085,15 +2086,15 @@ sub addProperty {
     my ($self, %params) = @_;
     my $table = $self->{tables}{Property} ||= {};
 
-    Win32::MSI::HighLevel::Common::require (\%params, qw(-Property -Value));
-    Win32::MSI::HighLevel::Common::allow (\%params,
+    Win32::MSI::HighLevel::Common::require(\%params, qw(-Property -Value));
+    Win32::MSI::HighLevel::Common::allow(\%params,
         qw(-Property -Value -context));
 
     $params{-Property} =
-        $self->_getUniqueID ($params{-Property}, 'Property', 72,
+        $self->_getUniqueID($params{-Property}, 'Property', 72,
         $params{-context});
 
-    return $self->_addPropertyRow (\%params);
+    return $self->_addPropertyRow(\%params);
 }
 
 
@@ -2146,15 +2147,15 @@ sub addRegistry {
     my ($self, %params) = @_;
     my $table = $self->{tables}{Registry} ||= {};
 
-    Win32::MSI::HighLevel::Common::require (\%params, qw(-Key -Root -Value));
-    Win32::MSI::HighLevel::Common::allow (\%params,
+    Win32::MSI::HighLevel::Common::require(\%params, qw(-Key -Root -Value));
+    Win32::MSI::HighLevel::Common::allow(\%params,
         qw(-Component_ -genRegKey -Key -Name -Root -Value));
 
     Carp::croak "-Component_ is required unless -genRegKey is used"
         if !(exists $params{-Component_} || exists $params{-genRegKey});
 
     my $regId =
-        $self->_getUniqueID ("$params{-Root}/$params{-Key}/$params{-Name}",
+        $self->_getUniqueID("$params{-Root}/$params{-Key}/$params{-Name}",
         'Registry');
 
     return $regId if exists $params{-genRegKey};
@@ -2162,7 +2163,7 @@ sub addRegistry {
     $params{-Name} ||= '';
     $params{-Registry} = $regId;
 
-    return $self->_addRegistryRow (\%params);
+    return $self->_addRegistryRow(\%params);
 }
 
 
@@ -2236,8 +2237,8 @@ sub addRegLocator {
     my ($self, %params) = @_;
     my $table = $self->{tables}{Registry} ||= {};
 
-    Win32::MSI::HighLevel::Common::require (\%params, qw(-Key -Root));
-    Win32::MSI::HighLevel::Common::allow (\%params,
+    Win32::MSI::HighLevel::Common::require(\%params, qw(-Key -Root));
+    Win32::MSI::HighLevel::Common::allow(\%params,
         qw(-64Bit -directory -file -Key -Name -property -Root));
     $params{-Name} ||= '';
 
@@ -2265,7 +2266,7 @@ sub addRegLocator {
     croak "One of -directory, -file or -property required"
         unless defined $signature;
 
-    return $self->_addRegLocatorRow (\%params);
+    return $self->_addRegLocatorRow(\%params);
 }
 
 
@@ -2296,10 +2297,10 @@ sub addSelfReg {
     my ($self, %params) = @_;
     my $table = $self->{tables}{Registry} ||= {};
 
-    Win32::MSI::HighLevel::Common::require (\%params, qw(-File_ -Cost));
-    Win32::MSI::HighLevel::Common::allow (\%params, qw(-File_ -Cost));
+    Win32::MSI::HighLevel::Common::require(\%params, qw(-File_ -Cost));
+    Win32::MSI::HighLevel::Common::allow(\%params, qw(-File_ -Cost));
 
-    return $self->_addSelfRegRow (\%params);
+    return $self->_addSelfRegRow(\%params);
 }
 
 
@@ -2494,14 +2495,14 @@ sub addShortcut {
     my $table = $self->{tables}{Shortcut} ||= {};
     my $featureId = $params{-featureId};
 
-    Win32::MSI::HighLevel::Common::require (\%params, qw(-name -featureId));
-    Win32::MSI::HighLevel::Common::allow (
+    Win32::MSI::HighLevel::Common::require(\%params, qw(-name -featureId));
+    Win32::MSI::HighLevel::Common::allow(
         \%params, qw(
             -Arguments -Component_ -Description -Directory_ -featureId -folderTarget
             -location -Hotkey -Icon_ -name -Shortcut -ShowCmd -Target -target -WkDir
             -wkdir
             )
-    );
+            );
 
     croak "Only one of -WkDir and -wkDir allowed\n"
         if exists $params{-WkDir} and exists $params{-wkDir};
@@ -2521,37 +2522,37 @@ sub addShortcut {
         unless exists $params{-Directory_}
             or exists $params{-location};
 
-    $params{-Directory_} = $self->getTargetDirID ($params{-location})
+    $params{-Directory_} = $self->getTargetDirID($params{-location})
         if not exists $params{-Directory_};
     $params{-location} ||= $params{-Directory_};
 
     if (exists $params{-folderTarget}) {
-        my $target = $self->getTargetDirID ($params{-folderTarget});
+        my $target = $self->getTargetDirID($params{-folderTarget});
         $params{-Target} = "[$target]";
     } elsif (exists $params{-target}) {
         my $target = $params{-target};
         my ($path, $file) = $target =~ m!(.*)[\\/](.*)!;
-        my $dirId = $self->getTargetDirID ($path);
+        my $dirId = $self->getTargetDirID($path);
 
         $params{-Target} = defined $dirId ? "[$dirId]\\$file" : $target;
     }
 
     my $lookup = "$params{-Target}/$params{-Directory_}";
     $params{-Shortcut} =
-        $self->_getUniqueID ($params{-name}, 'Shortcut', undef, $lookup);
+        $self->_getUniqueID($params{-name}, 'Shortcut', undef, $lookup);
 
     # Note that a Directory table entry is required for the working directory
     # entry, not a property entry. The Shortcut table documentation is wrong!
-    $params{-WkDir} = $self->getTargetDirID ($params{-wkdir})
+    $params{-WkDir} = $self->getTargetDirID($params{-wkdir})
         if exists $params{-wkdir};
 
-    $params{-Component_} ||= $self->addComponent (
+    $params{-Component_} ||= $self->addComponent(
         -Directory_ => $params{-Directory_},
         -features   => [$featureId]
-    );
-    $params{-Name} = $self->_longAndShort ($params{-name});
+        );
+    $params{-Name} = $self->_longAndShort($params{-name});
 
-    return $self->_addShortcutRow (\%params);
+    return $self->_addShortcutRow(\%params);
 }
 
 
@@ -2636,15 +2637,15 @@ sub addSignature {
     my $table = $self->{tables}{Signature} ||= {};
     my $featureId = $params{-featureId};
 
-    Win32::MSI::HighLevel::Common::require (\%params, qw(-Signature -FileName));
-    Win32::MSI::HighLevel::Common::allow (
+    Win32::MSI::HighLevel::Common::require(\%params, qw(-Signature -FileName));
+    Win32::MSI::HighLevel::Common::allow(
         \%params, qw(
             -Signature -FileName -MinVersion -MaxVersion -MinSize -MaxSize
             -MinDate -MaxDate -Languages
             )
-    );
+            );
 
-    return $self->_addSignatureRow (\%params);
+    return $self->_addSignatureRow(\%params);
 }
 
 
@@ -2671,14 +2672,14 @@ Path to the file to be added on the source system.
 sub addStorage {
     my ($self, %params) = @_;
 
-    Win32::MSI::HighLevel::Common::require (\%params, qw(-Name -file));
-    Win32::MSI::HighLevel::Common::allow (\%params, qw(-Name -file));
+    Win32::MSI::HighLevel::Common::require(\%params, qw(-Name -file));
+    Win32::MSI::HighLevel::Common::allow(\%params, qw(-Name -file));
 
     croak "File $params{-file} must exist during installer generation"
         unless -e $params{-file};
 
     $params{-Data} = $params{-file};
-    $self->_addStorageRow (\%params);
+    $self->_addStorageRow(\%params);
 }
 
 
@@ -2760,17 +2761,17 @@ sub addUpgrade {
     my ($self, %params) = @_;
     my $table = $self->{tables}{Registry} ||= {};
 
-    Win32::MSI::HighLevel::Common::require (\%params, qw(-ActionProperty));
-    Win32::MSI::HighLevel::Common::allow (
+    Win32::MSI::HighLevel::Common::require(\%params, qw(-ActionProperty));
+    Win32::MSI::HighLevel::Common::allow(
         \%params,
         qw(
             -UpgradeCode -VersionMin -VersionMax -Language -Attributes -Remove
             -ActionProperty
             )
-    );
+            );
 
     if (!exists $params{-UpgradeCode}) {
-        my $ucProp = $self->getProperty ('UpgradeCode');
+        my $ucProp = $self->getProperty('UpgradeCode');
 
         croak
             "-UpgradeCode parameter or UpgradeCode property required for addUpgrade"
@@ -2797,7 +2798,7 @@ sub addUpgrade {
             . "   $params{$key} is not valid for $key";
     }
 
-    return $self->_addUpgradeRow (\%params);
+    return $self->_addUpgradeRow(\%params);
 }
 
 
@@ -2828,13 +2829,13 @@ sub createCabs {
     my $self = shift;
 
     unless (exists $self->{tables}{Cabs}) {
-        $self->createTable (
+        $self->createTable(
             -table      => 'Cabs',
             -columnSpec => [
                 Name => [qw(Identifier(32) Key Required)],
                 Data => [qw(Binary Required)]
-            ]
-        );
+                ]
+                );
     }
 
     my $fileTable = $self->{tables}{File};
@@ -2844,10 +2845,7 @@ sub createCabs {
 
     if (!@files) {
         # Add an empty media table entry
-        $self->addMedia (
-            -DiskId       => 1,
-            -LastSequence => 1
-        );
+        $self->addMedia(-DiskId => 1, -LastSequence => 1);
 
         return;
     }
@@ -2870,8 +2868,8 @@ HEADER
 
     for (@files) {
         my ($component, $key) = @$_;
-        my $file = $fileTable->{$key};
-        my $absPath = File::Spec->rel2abs ($file->{-path});
+        my $file    = $fileTable->{$key};
+        my $absPath = File::Spec->rel2abs($file->{-path});
 
         if ($component ne $lastComponent) {
             print CABDFF ".New Folder\n";
@@ -2887,19 +2885,19 @@ HEADER
 TAIL
     CORE::close CABDFF;
 
-    my $workDir = Cwd::getcwd ();
+    my $workDir = Cwd::getcwd();
 
     chdir $self->{-workRoot};
     mkdir "$self->{-workRoot}\\disk1" unless -d "$self->{-workRoot}\\disk1";
     `makecab /F $cabDFF /L "$self->{-workRoot}" /V1`;
     chdir $workDir;
 
-    $self->addCab (
+    $self->addCab(
         -name    => 'cab1.cab',
         -file    => "$self->{-workRoot}\\disk1\\cab1.cab",
         -disk    => 1,
         -lastSeq => $sequence - 1
-    );
+        );
 }
 
 
@@ -3014,16 +3012,16 @@ sub createTable {
         UpperCase        => 'CHAR(255)',
         Version          => 'CHAR(72)',
         WildCardFilename => 'CHAR(128) LOCALIZABLE',
-    );
+        );
     my %columnSpecs = (
         AppSearch => [
             Property   => [qw(Key Identifier(72) Required)],
             Signature_ => [qw(Key Identifier(72) Required)],
-        ],
+            ],
         Binary => [
             Name => [qw(Identifier(32) Key Required)],
             Data => [qw(Binary Required)]
-        ],
+            ],
         Component => [
             Component   => [qw(Key Identifier(72) Required)],
             ComponentId => 'GUID',
@@ -3031,41 +3029,41 @@ sub createTable {
             Attributes  => [qw(Integer Required)],
             Condition   => [qw(Condition)],
             KeyPath     => [qw(KeyPath(72))],
-        ],
+            ],
         ControlCondition => [
             Dialog_   => [qw(Key Identifier(72) Required)],
             Control_  => [qw(Key Identifier(50) Required)],
             Action    => [qw(Key Text(50) Required)],
             Condition => [qw(Key Condition Required)],
-        ],
+            ],
         CreateFolder => [
             Directory_ => [qw(Key Identifier(72) Required)],
             Component_ => [qw(Key Identifier(72) Required)],
-        ],
+            ],
         CustomAction => [
             Action => [qw(Key Identifier(72) Required)],
             Type   => [qw(Integer Required)],
             Source => [qw(CustomSource)],
             Target => [qw(Formatted)],
-        ],
+            ],
         Directory => [
             Directory        => [qw(Key Identifier(72) Required)],
             Directory_Parent => ['Identifier(72)'],
             DefaultDir       => [qw(DefaultDir Required)],
-        ],
+            ],
         DrLocator => [
             Signature_ => [qw(Key Text Required)],
             Parent     => [qw(Key Identifier(72))],
             Path       => [qw(Key Text)],
             Depth      => [qw(Integer)],
-        ],
+            ],
         Extension => [
             Extension  => [qw(Key Text Required)],
             Component_ => [qw(Key Identifier(72) Required)],
             ProgId_    => [qw(Text)],
             MIME_      => [qw(Text)],
             Feature_   => [qw(Identifier Required)],
-        ],
+            ],
         Feature => [
             Feature        => [qw(Key Identifier Required)],
             Feature_Parent => ['Identifier'],
@@ -3075,11 +3073,11 @@ sub createTable {
             Level          => [qw(Integer Required)],
             Directory_     => ['Directory'],
             Attributes     => [qw(Integer Required)],
-        ],
+            ],
         FeatureComponents => [
             Feature_   => [qw(Key Identifier Required)],
             Component_ => [qw(Key Identifier(72) Required)],
-        ],
+            ],
         File => [
             File       => [qw(Key Identifier Required)],
             Component_ => [qw(Identifier Required)],
@@ -3089,20 +3087,20 @@ sub createTable {
             Language   => [qw(Language)],
             Attributes => [qw(Integer)],
             Sequence   => [qw(Integer Required)],
-        ],
+            ],
         Icon => [
             Name => [qw(Identifier(32) Key Required)],
             Data => [qw(Binary Required)]
-        ],
+            ],
         InstallUISequence => [
             Action    => [qw(Identifier(72) Key Required)],
             Condition => [qw(Condition)],
             Sequence  => [qw(Integer Required)],
-        ],
+            ],
         LaunchCondition => [
             Condition   => [qw(Key Condition Required)],
             Description => [qw(Formatted Required)],
-        ],
+            ],
         Media => [
             DiskId       => [qw(Key Integer Required)],
             LastSequence => [qw(Long Required)],
@@ -3110,16 +3108,16 @@ sub createTable {
             Cabinet      => [qw(Cabinet)],
             VolumeLabel  => [qw(Text(32))],
             Source       => [qw(Property)],
-        ],
+            ],
         MsiDriverPackages => [
             Component => [qw(Key Text(255) Required)],
             Flags     => [qw(Long Required)],
             Sequence  => [qw(Long)],
-        ],
+            ],
         Property => [
             Property => [qw(Key Identifier(72) Required)],
             Value    => [qw(Text(0) Required)],
-        ],
+            ],
         ProgId => [
             ProgId        => [qw(Key Text Required)],
             ProgId_Parent => [qw(Text)],
@@ -3127,25 +3125,25 @@ sub createTable {
             Description   => [qw(Text)],
             Icon_         => [qw(Identifier)],
             IconIndex     => [qw(Integer)],
-        ],
+            ],
         RegLocator => [
             Signature_ => [qw(Key Identifier(72) Required)],
             Root       => [qw(Integer Required)],
             Key        => [qw(RegPath Required)],
             Name       => [qw(Formatted)],
             Type       => [qw(Integer)],
-        ],
+            ],
         RemoveFile => [
             FileKey     => [qw(Key Identifier Required)],
             Directory_  => [qw(Identifier Required)],
             FileName    => [qw(WildCardFilename)],
             DirProperty => [qw(Identifier Required)],
             InstallMode => [qw(Identifier Required)],
-        ],
+            ],
         SelfReg => [
             File_ => [qw(Key Identifier Required)],
             Cost  => [qw(Integer Required)]
-        ],
+            ],
         Shortcut => [
             Shortcut               => [qw(Key Identifier(72) Required)],
             Directory_             => [qw(Identifier(72) Required)],
@@ -3163,7 +3161,7 @@ sub createTable {
             DisplayResourceId      => 'Integer',
             DescriptionResourceDLL => 'Formatted',
             DescriptionResourceId  => 'Integer',
-        ],
+            ],
         Signature => [
             Signature  => [qw(Key Identifier(72) Required)],
             FileName   => [qw(Text Required)],
@@ -3174,7 +3172,7 @@ sub createTable {
             MinDate    => [qw(DoubleInteger)],
             MaxDate    => [qw(DoubleInteger)],
             Languages  => [qw(Text)],
-        ],
+            ],
         Upgrade => [
             UpgradeCode    => [qw(Key GUID Required)],
             VersionMin     => [qw(Key Version)],
@@ -3183,15 +3181,15 @@ sub createTable {
             Attributes     => [qw(Key Integer Required)],
             Remove         => 'Formatted',
             ActionProperty => [qw(Identifier Required)],
-        ],
+            ],
         Verb => [
             Extension_ => [qw(Key Text Required)],
             Verb       => [qw(Key Text Required)],
             Sequence   => [qw(Integer)],
             Command    => [qw(Formatted)],
             Argument   => [qw(Formatted)],
-        ],
-    );
+            ],
+            );
 
     if (exists $params{_keys}) {
         # Return the keys for the given table
@@ -3210,12 +3208,12 @@ sub createTable {
         return @keys;
     }
 
-    Win32::MSI::HighLevel::Common::require (\%params, qw(-table));
-    Win32::MSI::HighLevel::Common::allow (\%params, qw(-table -columnSpec));
+    Win32::MSI::HighLevel::Common::require(\%params, qw(-table));
+    Win32::MSI::HighLevel::Common::allow(\%params, qw(-table -columnSpec));
 
     croak
         "$params{-table} is a temporary or read only table and can not be created."
-        if _readonlyTable ($params{-table});
+        if _readonlyTable($params{-table});
 
     croak
         "A known table type ($params{-table} given) or a -columnSpec parameter is required"
@@ -3232,7 +3230,7 @@ sub createTable {
         my ($column, $spec) = splice @{$params{-columnSpec}}, 0, 2;
 
         croak "No type specification provided for column $columnSpecs[-1]"
-            unless defined $spec and 'ARRAY' eq ref ($spec) || !ref ($spec);
+            unless defined $spec and 'ARRAY' eq ref($spec) || !ref($spec);
 
         push @columnSpecs, "`$column`";
 
@@ -3270,12 +3268,11 @@ sub createTable {
     my $columnSpec = join ', ', @columnSpecs;
     my $sql = "CREATE TABLE `$params{-table}` ($columnSpec";
 
-    $sql .= ' PRIMARY KEY ' . join (', ', map {"`$_`"} @keys) . ')';
-    my $table =
-        Win32::MSI::HighLevel::View->new ($self, query => $sql, %params);
+    $sql .= ' PRIMARY KEY ' . join(', ', map {"`$_`"} @keys) . ')';
+    my $table = Win32::MSI::HighLevel::View->new($self, query => $sql, %params);
 
     $self->{tables}{$params{-table}}{_created} = 1;
-    $self->commit ();    # Ensure table is created in database
+    $self->commit();    # Ensure table is created in database
     return $table && $params{-table};
 }
 
@@ -3291,7 +3288,7 @@ Removes a database table.
 sub dropTable {
     my ($self, $table) = @_;
 
-    return Win32::MSI::HighLevel::View->new ($self,
+    return Win32::MSI::HighLevel::View->new($self,
         query => "DROP TABLE `$table`");
 }
 
@@ -3328,7 +3325,7 @@ sub expandPath {
         last unless exists $self->{tables}{Directory}{$dirId};
 
         my $dir = $self->{tables}{Directory}{$dirId};
-        my ($short, $long) = @{$self->_dirPair ($dir->{-DefaultDir})};
+        my ($short, $long) = @{$self->_dirPair($dir->{-DefaultDir})};
 
         $long .= '\\' if length $prefix;
         $prefix = "$long$prefix";
@@ -3369,11 +3366,11 @@ See also L</importTable>.
 sub exportTable {
     my ($self, $table, $path) = @_;
 
-    $path = File::Spec->rel2abs ($path);
+    $path = File::Spec->rel2abs($path);
     mkdir $path unless -d $path;
 
     my $result =
-        $MsiDatabaseExport->Call ($self->{handle}, $table, $path, "$table.idt");
+        $MsiDatabaseExport->Call($self->{handle}, $table, $path, "$table.idt");
     return $result;
 }
 
@@ -3427,8 +3424,8 @@ The list of features that install the component associated with the directory.
 sub getComponentIdForDirId {
     my ($self, %params) = @_;
 
-    Win32::MSI::HighLevel::Common::require (\%params, qw(-Directory -features));
-    Win32::MSI::HighLevel::Common::allow (\%params, qw(-Directory -features));
+    Win32::MSI::HighLevel::Common::require(\%params, qw(-Directory -features));
+    Win32::MSI::HighLevel::Common::allow(\%params, qw(-Directory -features));
 
     croak "Directory table doesn't exist."
         unless exists $self->{tables}{Directory};
@@ -3439,17 +3436,17 @@ sub getComponentIdForDirId {
         my $component = $self->{tables}{Component}{lc $params{-Directory}};
 
         $component = $component->{-Component};
-        $self->addFeatureComponents (
+        $self->addFeatureComponents(
             -Component_ => $component,
             -features   => $params{-features}
-        );
+            );
         return $component;
     }
 
-    return $self->addComponent (
+    return $self->addComponent(
         -Directory_ => $params{-Directory},
         -features   => $params{-features}
-    );
+        );
 }
 
 
@@ -3496,7 +3493,7 @@ sub getParentDirID {
     my $parentId;
     my $dirTable = $self->{tables}{Directory};
 
-    $self->_buildDirLookup ();
+    $self->_buildDirLookup();
 
     return unless exists $dirTable->{$dirId};
     return $dirTable->{$dirId}{-Directory_Parent};
@@ -3513,9 +3510,9 @@ Return a string containing product and major version information.
 
 sub getProduct {
     my ($self) = @_;
-    my $name = $self->getProperty ('ProductName');
-    my $vers = $self->getProperty ('ProductVersion');
-    my $manf = $self->getProperty ('Manufacturer');
+    my $name   = $self->getProperty('ProductName');
+    my $vers   = $self->getProperty('ProductVersion');
+    my $manf   = $self->getProperty('Manufacturer');
 
     return "$manf: $name - $vers";
 }
@@ -3536,7 +3533,7 @@ sub getProductCode {
     my ($self) = @_;
 
     return $self->{productCode} if exists $self->{productCode};
-    return $self->_genProductCode ();
+    return $self->_genProductCode();
 }
 
 
@@ -3552,7 +3549,7 @@ property entry doesn't exist.
 sub getProperty {
     my ($self, $key) = @_;
 
-    my $rec = $self->getTableEntry ('Property', {'-Property' => $key});
+    my $rec = $self->getTableEntry('Property', {'-Property' => $key});
     return undef if !defined $rec;
     return $rec->{-Value};
 }
@@ -3648,7 +3645,7 @@ sub getTargetDirID {
     my $id;
     my $dirTable = $self->{tables}{Directory};
 
-    $self->_buildDirLookup ();
+    $self->_buildDirLookup();
     $path =~ s!\\!/!g;
 
     my @parts = split '/', $path;
@@ -3675,14 +3672,14 @@ sub getTargetDirID {
         # See if it's a predefined directory
         if (!defined $entry and exists $systemFolders{$part}) {
             $entry = {%{$systemFolders{$part}}, -Directory => $part};
-            $self->addDirectory (%$entry)
+            $self->addDirectory(%$entry)
                 if !defined $self->{tables}{Directory}{$lcPart};
         }
 
         if (!defined $entry) {
 
             # Create the Directory table entry and the lookup entry
-            my $short  = $self->_longToShort ($part);
+            my $short  = $self->_longToShort($part);
             my $defDir = $short;
             my $dirId  = "Dir_$part";                # Avoid property id clashes
 
@@ -3690,21 +3687,21 @@ sub getTargetDirID {
             $dirId = uc $dirId
                 if !@parts
                     and $public
-                    and uc ($part) ne $part;
+                    and uc($part) ne $part;
 
             $dirId = $wantedId if !@parts and defined $wantedId;
 
-            $dirId = $self->_getUniqueID ($dirId, "Directory", undef, $parent);
+            $dirId = $self->_getUniqueID($dirId, "Directory", undef, $parent);
             if (!defined $dirId or !length $dirId) {
                 croak "Failed to generate a directory id for $path";
             }
 
             $defDir .= "|$part" unless lc $short eq $lcPart;
-            $self->addDirectory (
+            $self->addDirectory(
                 -DefaultDir       => $defDir,
                 -Directory        => $dirId,
                 -Directory_Parent => $parent,
-            );
+                );
 
             $entry = $dirTable->{lc $dirId};
             $self->{DirLookup}{lc $dirId}{$entry->{-Directory}} = $entry;
@@ -3770,12 +3767,11 @@ sub importTable {
     #define ERROR_INVALID_HANDLE_STATE  1609L
     #define ERROR_INVALID_PARAMETER          87L
 
-    $path = File::Spec->rel2abs ($path);
-    my $result =
-        $MsiDatabaseImport->Call ($self->{handle}, $path, "$table.idt");
+    $path = File::Spec->rel2abs($path);
+    my $result = $MsiDatabaseImport->Call($self->{handle}, $path, "$table.idt");
 
     return undef unless $result;
-    return _errorMsg ();
+    return _errorMsg();
 }
 
 
@@ -3792,10 +3788,10 @@ be written to the output unchanged.
 
 sub populateTables {
     my ($self, $warn) = @_;
-    my $tables = $self->view (-table => '_Tables');
+    my $tables = $self->view(-table => '_Tables');
 
-    while (my $tableName = $tables->fetch ()) {
-        my $name = $tableName->string ('Name');
+    while (my $tableName = $tables->fetch()) {
+        my $name = $tableName->string('Name');
 
         $self->{tables}{$name} ||= {_created => 1};
         if (   !exists $self->{knownTables}{$name}
@@ -3807,10 +3803,10 @@ sub populateTables {
             next;
         }
 
-        my $table = $self->view (-table => $name);
+        my $table = $self->view(-table => $name);
 
-        while (my $rec = $table->fetch ()) {
-            $rec->populate ();
+        while (my $rec = $table->fetch()) {
+            $rec->populate();
             $rec->{state} = Win32::MSI::HighLevel::Record::kClean;
             $self->{knownTables}{$name}->($self, $rec);
         }
@@ -3825,7 +3821,7 @@ sub populateTables {
 
         next unless ref $row;
         unless (defined $row->{-FileSize}) {
-            my $fullPath = $self->_getFullFilePath ($row);
+            my $fullPath = $self->_getFullFilePath($row);
 
             $row->{-FileSize} = -s $fullPath || undef;
         }
@@ -3941,15 +3937,15 @@ sub registerExtension {
     my $table = $self->{tables}{Registry} ||= {};
     my @return;
 
-    Win32::MSI::HighLevel::Common::require (\%params,
+    Win32::MSI::HighLevel::Common::require(\%params,
         qw(-Component_ -Extension -Feature_));
-    Win32::MSI::HighLevel::Common::allow (
+    Win32::MSI::HighLevel::Common::allow(
         \%params,
         qw(-Argument -Component_ -Extension -Description -Feature_ -Icon_
             -iconFile -IconIndex -MIME_ -ProgId_ -ProgId_Parent -Verb)
-    );
+            );
 
-    $self->autovivifyTables (qw(Extension ProgId Verb));
+    $self->autovivifyTables(qw(Extension ProgId Verb));
 
     $params{-Extension} = [$params{-Extension}]
         unless 'ARRAY' eq ref $params{-Extension};
@@ -3967,13 +3963,13 @@ sub registerExtension {
             -Extension  => $extension,
             -Component_ => $params{-Component_},
             -Feature_   => $params{-Feature_},
-        );
+            );
 
         $rec{-ProgId_} = $params{-ProgId_} if exists $params{-ProgId_};
         $rec{-MIME_}   = $params{-MIME_}   if exists $params{-MIME_};
 
         $rec{-lu} = "$params{-Component_}/$extension";
-        push @return, $self->_addRow ('Extension', 'lu', \%rec);
+        push @return, $self->_addRow('Extension', 'lu', \%rec);
 
         # Update the MIME table if required
         if (exists $params{-MIME_}) {
@@ -3981,10 +3977,10 @@ sub registerExtension {
                 -Extension_  => $extension,
                 -ContentType => $params{-MIME_},
                 -CLSID       => $params{-MIMECLSID},
-            );
+                );
 
             $rec{-lu} = "$params{-ContentType}/$extension";
-            $self->_addRow ('MIME', 'lu', \%rec);
+            $self->_addRow('MIME', 'lu', \%rec);
         }
 
         # Update the Verb table if required
@@ -3996,21 +3992,21 @@ sub registerExtension {
             $rec{-Argument} = $params{-Argument} if exists $params{-Argument};
 
             $rec{-lu} = "$extension/$params{-Verb}";
-            $self->_addRow ('Verb', 'lu', \%rec);
+            $self->_addRow('Verb', 'lu', \%rec);
         }
     }
 
     croak
         "An -IconIndex and either a -iconFile or -Icon_ parameter must be provided if any are provided"
-        unless Win32::MSI::HighLevel::Common::noneOf (\%params,
+        unless Win32::MSI::HighLevel::Common::noneOf(\%params,
         qw(-iconFile -IconIndex -Icon_))
         or exists $params{-IconIndex}
         && 1 ==
-        Win32::MSI::HighLevel::Common::someOf (\%params, qw(-iconFile -Icon_));
+        Win32::MSI::HighLevel::Common::someOf(\%params, qw(-iconFile -Icon_));
 
     if (exists $params{-iconFile}) {
         # Create Icon table entry if required and generate icon Id
-        $params{-Icon_} = $self->addIconFile ($params{-iconFile});
+        $params{-Icon_} = $self->addIconFile($params{-iconFile});
     }
 
     if (exists $params{-ProgId_}) {
@@ -4025,7 +4021,7 @@ sub registerExtension {
         $rec{-Icon_}     = $params{-Icon_}     if exists $params{-Icon_};
         $rec{-IconIndex} = $params{-IconIndex} if exists $params{-IconIndex};
 
-        $self->_addRow ('ProgId', 'ProgId', \%rec);
+        $self->_addRow('ProgId', 'ProgId', \%rec);
     }
 
     return @return;
@@ -4094,9 +4090,9 @@ sub setProduct {
     my ($self, %params) = @_;
     my $table = $self->{tables}{Property} ||= {};
 
-    Win32::MSI::HighLevel::Common::require (\%params,
+    Win32::MSI::HighLevel::Common::require(\%params,
         qw(-Language -Manufacturer -Name -Version));
-    Win32::MSI::HighLevel::Common::allow (\%params,
+    Win32::MSI::HighLevel::Common::allow(\%params,
         qw(-Language -Manufacturer -Name -upgradeCode -Version));
 
     my $guid = $params{-upgradeCode};
@@ -4104,25 +4100,25 @@ sub setProduct {
     if (!$guid) {
         my $prodStr = "$params{-Manufacturer} $params{-Name}";
 
-        $guid = Win32::MSI::HighLevel::Common::genGUID ($prodStr);
+        $guid = Win32::MSI::HighLevel::Common::genGUID($prodStr);
     }
 
-    $self->setProperty (-Property => 'UpgradeCode', -Value => $guid);
-    $self->setProperty (
+    $self->setProperty(-Property => 'UpgradeCode', -Value => $guid);
+    $self->setProperty(
         -Property => 'ProductLanguage',
         -Value    => $params{-Language}
-    );
-    $self->setProperty (-Property => 'ProductName', -Value => $params{-Name});
-    $self->setProperty (
+        );
+    $self->setProperty(-Property => 'ProductName', -Value => $params{-Name});
+    $self->setProperty(
         -Property => 'ProductVersion',
         -Value    => $params{-Version}
-    );
-    $self->setProperty (
+        );
+    $self->setProperty(
         -Property => 'Manufacturer',
         -Value    => $params{-Manufacturer}
-    );
+        );
 
-    return $self->_genProductCode ();
+    return $self->_genProductCode();
 }
 
 
@@ -4154,8 +4150,8 @@ sub setProperty {
     my ($self, %params) = @_;
     my $table = $self->{tables}{Property} ||= {};
 
-    Win32::MSI::HighLevel::Common::require (\%params, qw(-Property -Value));
-    Win32::MSI::HighLevel::Common::allow (\%params, qw(-Property -Value));
+    Win32::MSI::HighLevel::Common::require(\%params, qw(-Property -Value));
+    Win32::MSI::HighLevel::Common::allow(\%params, qw(-Property -Value));
 
     if (exists $table->{lc $params{-Property}}) {
         my $property = $table->{lc $params{-Property}};
@@ -4164,7 +4160,7 @@ sub setProperty {
         $property->{state} = Win32::MSI::HighLevel::Record::kDirty;
         return $property->{-Property};
     } else {
-        return $self->addProperty (%params);
+        return $self->addProperty(%params);
     }
 }
 
@@ -4255,7 +4251,7 @@ sub updateTableEntry {
         unless exists $self->{knownTables}{$name};
 
     # Delete previous table entry
-    $self->_deleteRow ($name, $key, $lu);
+    $self->_deleteRow($name, $key, $lu);
     delete $entry->{'!lu'};
     delete $entry->{'!key'};
     delete $entry->{'!name'};
@@ -4283,19 +4279,19 @@ sub view {
     my ($self, %params) = @_;
 
     $params{-columns} ||= ['*'];
-    Win32::MSI::HighLevel::Common::listize (\%params, qw(column table));
-    Win32::MSI::HighLevel::Common::require (\%params, qw(-tables));
-    Win32::MSI::HighLevel::Common::allow (\%params,
+    Win32::MSI::HighLevel::Common::listize(\%params, qw(column table));
+    Win32::MSI::HighLevel::Common::require(\%params, qw(-tables));
+    Win32::MSI::HighLevel::Common::allow(\%params,
         qw(-columns -order -tables -table -where));
 
-    my $query = "SELECT " . join (', ', @{$params{-columns}});
+    my $query = "SELECT " . join(', ', @{$params{-columns}});
 
-    $query .= " FROM " . join (', ', @{$params{-tables}});
+    $query .= " FROM " . join(', ', @{$params{-tables}});
     $query .= " WHERE $params{-where}" if exists $params{-where};
-    $query .= " ORDER BY " . join (', ', @{$params{-order}})
+    $query .= " ORDER BY " . join(', ', @{$params{-order}})
         if exists $params{-order};
 
-    return Win32::MSI::HighLevel::View->new ($self, %params, query => $query);
+    return Win32::MSI::HighLevel::View->new($self, %params, query => $query);
 }
 
 
@@ -4315,7 +4311,7 @@ sub writeTables {
     my $self = shift;
 
     # First update SecureCustomProperties
-    my $scp = $self->getProperty ('SecureCustomProperties') || '';
+    my $scp = $self->getProperty('SecureCustomProperties') || '';
     my %properties = map {$_ => 1} split ';', $scp;
 
     for my $tableColumn ([Upgrade => '-ActionProperty']) {
@@ -4329,15 +4325,15 @@ sub writeTables {
     }
 
     $scp = join ';', sort keys %properties;
-    $self->setProperty (-Property => 'SecureCustomProperties', -Value => $scp)
+    $self->setProperty(-Property => 'SecureCustomProperties', -Value => $scp)
         if length $scp;
 
     for my $tableName (sort keys %{$self->{tables}}) {
-        $self->createTable (-table => $tableName)
-            unless _readonlyTable ($tableName)
+        $self->createTable(-table => $tableName)
+            unless _readonlyTable($tableName)
                 or exists $self->{tables}{$tableName}{_created};
 
-        my $table = $self->view (-table => $tableName);
+        my $table = $self->view(-table => $tableName);
         my $fieldHash = $self->{tables}{$tableName};
 
         croak "Table $tableName requires a root entry but none was provided"
@@ -4345,7 +4341,7 @@ sub writeTables {
 
         print "Updating table $tableName\n" if $self->{-noisy} & kReportUpdates;
 
-        my $rec = $table->createRecord ();
+        my $rec = $table->createRecord();
 
         # Add/update/delete rows
         for my $key (sort keys %$fieldHash) {
@@ -4361,7 +4357,7 @@ sub writeTables {
                 grep {/^-[A-Z]/}
                 keys %$rowData;
 
-            defined $rowData->{"-$_"} and $rec->setValue ($_, $rowData->{"-$_"})
+            defined $rowData->{"-$_"} and $rec->setValue($_, $rowData->{"-$_"})
                 for @columns;
             $rec->{state} = $rowData->{state};
 
@@ -4376,16 +4372,16 @@ sub writeTables {
                     if $self->{-noisy} & kReportUpdates;
             }
             $rowData->{state} == Win32::MSI::HighLevel::Record::kNew
-                ? $rec->insert ()
-                : $rec->update ();
+                ? $rec->insert()
+                : $rec->update();
 
-            if ($rec->getState () == Win32::MSI::HighLevel::Record::kDelete) {
+            if ($rec->getState() == Win32::MSI::HighLevel::Record::kDelete) {
                 delete $fieldHash->{$key};
             } else {
-                $rowData->{state} = $rec->getState ();
+                $rowData->{state} = $rec->getState();
             }
 
-            $rec->clearFields ();
+            $rec->clearFields();
             next;
         }
     }
@@ -4402,22 +4398,22 @@ sub writeTables {
 sub _addBinaryRow {
     my ($self, $rec) = @_;
 
-    return $self->_addRow ('Binary', 'Name', $rec, $rec->{-Name});
+    return $self->_addRow('Binary', 'Name', $rec, $rec->{-Name});
 }
 
 
 sub _addAppSearchRow {
     my ($self, $rec) = @_;
 
-    _genLu ($rec, qw(Property Signature_));
-    return $self->_addRow ('AppSearch', 'lu', $rec);
+    _genLu($rec, qw(Property Signature_));
+    return $self->_addRow('AppSearch', 'lu', $rec);
 }
 
 
 sub _addComponentRow {
     my ($self, $rec) = @_;
 
-    return $self->_addRow ('Component', 'Component', $rec,
+    return $self->_addRow('Component', 'Component', $rec,
         "$rec->{-Directory_}/$rec->{-KeyPath}");
 }
 
@@ -4425,61 +4421,61 @@ sub _addComponentRow {
 sub _addConditionRow {
     my ($self, $rec) = @_;
 
-    return $self->_addRow ('Feature_', 'Feature_', $rec);
+    return $self->_addRow('Feature_', 'Feature_', $rec);
 }
 
 
 sub _addControlRow {
     my ($self, $rec) = @_;
 
-    _genLu ($rec, qw(Control Dialog_));
-    return $self->_addRow ('Control', 'lu', $rec);
+    _genLu($rec, qw(Control Dialog_));
+    return $self->_addRow('Control', 'lu', $rec);
 }
 
 
 sub _addControlConditionRow {
     my ($self, $rec) = @_;
 
-    _genLu ($rec, qw(Control_ Dialog_ Action Condition));
-    return $self->_addRow ('ControlCondition', 'lu', $rec);
+    _genLu($rec, qw(Control_ Dialog_ Action Condition));
+    return $self->_addRow('ControlCondition', 'lu', $rec);
 }
 
 
 sub _addControlEventRow {
     my ($self, $rec) = @_;
 
-    _genLu ($rec, qw(Argument Condition Control_ Dialog_ Event));
-    return $self->_addRow ('ControlEvent', 'lu', $rec);
+    _genLu($rec, qw(Argument Condition Control_ Dialog_ Event));
+    return $self->_addRow('ControlEvent', 'lu', $rec);
 }
 
 
 sub _addCreateFolderRow {
     my ($self, $rec) = @_;
 
-    _genLu ($rec, qw(Component_ Directory_));
-    return $self->_addRow ('CreateFolder', 'lu', $rec);
+    _genLu($rec, qw(Component_ Directory_));
+    return $self->_addRow('CreateFolder', 'lu', $rec);
 }
 
 
 sub _addCustomActionRow {
     my ($self, $rec) = @_;
 
-    return $self->_addRow ('CustomAction', 'Action', $rec);
+    return $self->_addRow('CustomAction', 'Action', $rec);
 }
 
 
 sub _addDialogRow {
     my ($self, $rec) = @_;
 
-    return $self->_addRow ('Dialog', 'Dialog', $rec);
+    return $self->_addRow('Dialog', 'Dialog', $rec);
 }
 
 
 sub _addDirectoryRow {
     my ($self, $rec) = @_;
 
-    _checkId ($rec->{-Directory});
-    _checkId ($rec->{-Directory_Parent})
+    _checkId($rec->{-Directory});
+    _checkId($rec->{-Directory_Parent})
         if length $rec->{-Directory_Parent};
 
     if (   $rec->{-Directory} eq 'TARGETDIR'
@@ -4489,30 +4485,30 @@ sub _addDirectoryRow {
         my $table = $self->{tables}{Directory};
 
         $table->{_root} = $rec->{-Directory};
-        _checkId ($rec->{-DefaultDir});
+        _checkId($rec->{-DefaultDir});
     } else {
-        _checkDefaultDir ($rec->{-DefaultDir});
+        _checkDefaultDir($rec->{-DefaultDir});
     }
 
     my $lu = $rec->{-Directory};
     $lu ||= ":root:";
     $lu .= "/$rec->{-Directory_Parent}";
 
-    return $self->_addRow ('Directory', 'Directory', $rec, $lu);
+    return $self->_addRow('Directory', 'Directory', $rec, $lu);
 }
 
 
 sub _addDrLocator {
     my ($self, $rec) = @_;
 
-    return $self->_addRow ('DrLocator', 'Signature_', $rec);
+    return $self->_addRow('DrLocator', 'Signature_', $rec);
 }
 
 
 sub _addMsiDriverPackagesRow {
     my ($self, $rec) = @_;
 
-    return $self->_addRow ('MsiDriverPackages', 'Component', $rec);
+    return $self->_addRow('MsiDriverPackages', 'Component', $rec);
 }
 
 
@@ -4529,15 +4525,15 @@ sub _addFeatureRow {
     }
 
     $rec->{-name} ||= $rec->{-Feature};
-    return $self->_addRow ('Feature', 'Feature', $rec, $rec->{-name});
+    return $self->_addRow('Feature', 'Feature', $rec, $rec->{-name});
 }
 
 
 sub _addFeatureComponentsRow {
     my ($self, $rec) = @_;
 
-    _genLu ($rec, qw(Component_ Feature_));
-    return $self->_addRow ('FeatureComponents', 'lu', $rec, $rec->{-lu});
+    _genLu($rec, qw(Component_ Feature_));
+    return $self->_addRow('FeatureComponents', 'lu', $rec, $rec->{-lu});
 }
 
 
@@ -4545,8 +4541,8 @@ sub _addFileRow {
     my ($self, $rec) = @_;
     my $files = $self->{tables}{File};
 
-    $rec->{-Sequence} = $self->_nextSeqNum ($rec->{-File}, $rec->{-Sequence});
-    $self->_addRow ('File', 'File', $rec,
+    $rec->{-Sequence} = $self->_nextSeqNum($rec->{-File}, $rec->{-Sequence});
+    $self->_addRow('File', 'File', $rec,
         "$rec->{-Component_}/$rec->{-FileName}");
     return $rec->{-File};
 }
@@ -4555,14 +4551,14 @@ sub _addFileRow {
 sub _addIconRow {
     my ($self, $rec) = @_;
 
-    return $self->_addRow ('Icon', 'Name', $rec);
+    return $self->_addRow('Icon', 'Name', $rec);
 }
 
 
 sub _addInstallExecuteSequenceRow {
     my ($self, $rec) = @_;
 
-    return $self->_addRow ('InstallExecuteSequence', 'Action', $rec,
+    return $self->_addRow('InstallExecuteSequence', 'Action', $rec,
         $rec->{-Sequence});
 }
 
@@ -4570,7 +4566,7 @@ sub _addInstallExecuteSequenceRow {
 sub _addInstallUISequenceRow {
     my ($self, $rec) = @_;
 
-    return $self->_addRow ('InstallUISequence', 'Action', $rec,
+    return $self->_addRow('InstallUISequence', 'Action', $rec,
         $rec->{-Sequence});
 }
 
@@ -4578,7 +4574,7 @@ sub _addInstallUISequenceRow {
 sub _addLaunchConditionRow {
     my ($self, $rec) = @_;
 
-    return $self->_addRow ('LaunchCondition', 'Condition', $rec,
+    return $self->_addRow('LaunchCondition', 'Condition', $rec,
         $rec->{-Sequence});
 }
 
@@ -4586,14 +4582,14 @@ sub _addLaunchConditionRow {
 sub _addMediaRow {
     my ($self, $rec) = @_;
 
-    return $self->_addRow ('Media', 'DiskId', $rec, "$rec->{-Cabinet}");
+    return $self->_addRow('Media', 'DiskId', $rec, "$rec->{-Cabinet}");
 }
 
 
 sub _addPropertyRow {
     my ($self, $rec) = @_;
 
-    $self->_addRow ('Property', 'Property', $rec, $rec->{-Property});
+    $self->_addRow('Property', 'Property', $rec, $rec->{-Property});
     return $rec->{-Property};
 }
 
@@ -4601,8 +4597,8 @@ sub _addPropertyRow {
 sub _addRegistryRow {
     my ($self, $rec) = @_;
 
-    _genLu ($rec, qw(Key Name Root));
-    $self->_addRow ('Registry', 'lu', $rec, $rec->{-lu});
+    _genLu($rec, qw(Key Name Root));
+    $self->_addRow('Registry', 'lu', $rec, $rec->{-lu});
     return $rec->{-Registry};
 }
 
@@ -4610,7 +4606,7 @@ sub _addRegistryRow {
 sub _addRegLocatorRow {
     my ($self, $rec) = @_;
 
-    $self->_addRow ('RegLocator', 'Signature_', $rec);
+    $self->_addRow('RegLocator', 'Signature_', $rec);
     return $rec->{-Registry};
 }
 
@@ -4664,37 +4660,37 @@ sub _addRow {
 sub _addSelfRegRow {
     my ($self, $rec) = @_;
 
-    return $self->_addRow ('SelfReg', 'File_', $rec);
+    return $self->_addRow('SelfReg', 'File_', $rec);
 }
 
 
 sub _addShortcutRow {
     my ($self, $rec) = @_;
 
-    _genLu ($rec, qw(Directory_ Target));
-    return $self->_addRow ('Shortcut', 'Shortcut', $rec, $rec->{-lu});
+    _genLu($rec, qw(Directory_ Target));
+    return $self->_addRow('Shortcut', 'Shortcut', $rec, $rec->{-lu});
 }
 
 
 sub _addSignatureRow {
     my ($self, $rec) = @_;
 
-    return $self->_addRow ('Signature', 'Signature', $rec, $rec->{-Signature});
+    return $self->_addRow('Signature', 'Signature', $rec, $rec->{-Signature});
 }
 
 
 sub _addStorageRow {
     my ($self, $rec) = @_;
 
-    return $self->_addRow ('_Storages', 'Name', $rec, $rec->{-Name});
+    return $self->_addRow('_Storages', 'Name', $rec, $rec->{-Name});
 }
 
 
 sub _addUpgradeRow {
     my ($self, $rec) = @_;
 
-    _genLu ($rec, qw(UpgradeCode VersionMin VersionMax Language Attributes));
-    return $self->_addRow ('Upgrade', 'lu', $rec, $rec->{-lu});
+    _genLu($rec, qw(UpgradeCode VersionMin VersionMax Language Attributes));
+    return $self->_addRow('Upgrade', 'lu', $rec, $rec->{-lu});
 }
 
 
@@ -4745,10 +4741,10 @@ sub _buildDirLookup {
 
         $sourceDir ||= $targetDir;
         if (!defined $sourceDir or !defined $targetDir) {
-            croak ("Directory information not available.");
+            croak("Directory information not available.");
         }
-        $sourceDir = $self->_dirPair ($sourceDir);
-        $targetDir = $self->_dirPair ($targetDir);
+        $sourceDir = $self->_dirPair($sourceDir);
+        $targetDir = $self->_dirPair($targetDir);
 
         $self->{DirLookup}{lc $sourceDir->[1]}{$row->{-Directory}} = $row;
         $self->{DirLookup}{lc $sourceDir->[0]}{$row->{-Directory}} = $row
@@ -4775,11 +4771,14 @@ sub _checkId {
 
 sub _checkDefaultDir {
     my ($dir) = @_;
-    my ($target, $source) = split ':', $dir;
 
-    _checkFilename ($target, 'Target directory');
-    _checkFilename ($source, 'Source directory')
-        if defined $source and length $source;
+    Carp::croak() unless defined $dir;
+
+    my ($target, $source) = $dir =~ /(^[^:]+)(?::(.*))?$/;
+
+    _checkFilename($target, 'Target directory') unless $target eq '.';
+    _checkFilename($source, 'Source directory')
+        if defined $source;
 }
 
 
@@ -4832,7 +4831,7 @@ sub _dirPair {
 
     $long                             ||= $short;
     $short                            ||= $self->{dp_longToShort}{lc $long};
-    $short                            ||= $self->_longToShort ($long);
+    $short                            ||= $self->_longToShort($long);
     $self->{dp_longToShort}{lc $long} ||= $short;
 
     return [$short, $long];
@@ -4845,7 +4844,7 @@ sub _findFileId {
     $file = lc $file;
     $path = lc $path;
 
-    my @candidates = grep {lc ($self->{tables}{File}{$_}{-FileName}) eq $file}
+    my @candidates = grep {lc($self->{tables}{File}{$_}{-FileName}) eq $file}
         grep {$_ !~ /^_/} keys %{$self->{tables}{File}};
     my $match;
 
@@ -4866,7 +4865,7 @@ sub _findFileId {
 sub _genLu {
     my ($rec, @keys) = @_;
 
-    @keys = createTable (0, _keys => $keys[0]) if @keys == 1;
+    @keys = createTable(0, _keys => $keys[0]) if @keys == 1;
 
     !defined $rec->{"-$_"} and $rec->{"-$_"} = '' for @keys;
     $rec->{-lu} = join '/', map $rec->{"-$_"}, sort @keys;
@@ -4874,11 +4873,11 @@ sub _genLu {
 
 
 sub _genProductCode {
-    my ($self) = @_;
-    my $manufacturer = $self->getProperty ('Manufacturer');
-    my $language     = $self->getProperty ('ProductLanguage');
-    my $name         = $self->getProperty ('ProductName');
-    my $version      = $self->getProperty ('ProductVersion');
+    my ($self)       = @_;
+    my $manufacturer = $self->getProperty('Manufacturer');
+    my $language     = $self->getProperty('ProductLanguage');
+    my $name         = $self->getProperty('ProductName');
+    my $version      = $self->getProperty('ProductVersion');
 
     return
         if grep {!defined} ($manufacturer, $language, $name, $version);
@@ -4886,9 +4885,9 @@ sub _genProductCode {
     $self->{prodNamespace} = "$manufacturer/$language/$name/$version";
 
     my $prodCode =
-        Win32::MSI::HighLevel::Common::genGUID ($self->{prodNamespace});
+        Win32::MSI::HighLevel::Common::genGUID($self->{prodNamespace});
 
-    $self->setProperty (-Property => 'ProductCode', -Value => $prodCode);
+    $self->setProperty(-Property => 'ProductCode', -Value => $prodCode);
     $self->{productCode} = $prodCode;
     return $prodCode;
 }
@@ -4917,18 +4916,18 @@ sub _getUniqueID {
     my $key;
 
     return $self->{id_keyToId}{$context}{$key}
-        if $self->_haveUniqueId ($id, $context, $extra, $key);
+        if $self->_haveUniqueId($id, $context, $extra, $key);
 
     $length ||= 38;
     $id =~ tr/a-zA-Z0-9_.//cd;
     $id =~ s/^[\d.]+//;
     $id = substr $id, 0, $length;
 
-    Carp::croak "'$reqId' can not be used as an id.\n" .
-        "   An id must only contain letters, digits, _ and . characters and\n" .
-        "   must start with a letter. Character not allowed in an id have\n" .
-        "   been removed from requested id"
-        if ! length $id;
+    Carp::croak "'$reqId' can not be used as an id.\n"
+        . "   An id must only contain letters, digits, _ and . characters and\n"
+        . "   must start with a letter. Characters not allowed in an id have\n"
+        . "   been removed from the requested id"
+        if !length $id;
 
     my $lcId = lc $id;
 
@@ -4977,7 +4976,7 @@ sub _haveUniqueId {
 
 sub _longAndShort {
     my ($self, $long) = @_;
-    my $short = $self->_longToShort ($long);
+    my $short = $self->_longToShort($long);
 
     return $short if $short eq $long;
     return "$short|$long";

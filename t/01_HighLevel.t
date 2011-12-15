@@ -14,6 +14,7 @@ Test Win32::MSI::HighLevel
 
 BEGIN {
     use lib '../../..';    # For 'CPAN' folder layout
+    use lib '../lib';    # For dev folder layout
     use Win32::API;
 
     if ($^O ne 'MSWin32') {

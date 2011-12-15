@@ -6,10 +6,6 @@ package Win32::MSI::HighLevel::ErrorTable;
 
 Win32::MSI::HighLevel::ErrorTable - Helper module for Win32::MSI::HighLevel.
 
-=head1 VERSION
-
-Version 1.0006
-
 =head1 AUTHOR
 
     Peter Jaquiery
@@ -29,7 +25,6 @@ LICENSE file included with this module.
 BEGIN {
     use Exporter ();
     use vars qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
-    $VERSION     = '1.0006';
     @ISA         = qw(Exporter);
     @EXPORT      = qw();
     @EXPORT_OK   = qw();
@@ -290,7 +285,7 @@ our %ErrMsgs = (
     2208 => 'Database: [2]. Insufficient parameters for Execute.',
     2209 => 'Database: [2]. Cursor in invalid state.',
     2210 =>
-        'Database: [2]. Invalid update data type in column [3]. Null value supplied for required field perhaps?',
+        'Database: [2]. Invalid update data type in column [3]. Null value or unquoted 0 supplied for required field perhaps?',
     2211 => 'Database: [2]. Could not create database table [3].',
     2212 => 'Database: [2]. Database not in writable state.',
     2213 => 'Database: [2]. Error saving database tables.',
