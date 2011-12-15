@@ -9,13 +9,13 @@ require 5.007003;    # for Digest::MD5
 BEGIN {
     use Exporter ();
     use vars qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
-    $Win32::MSI::HighLevel::VERSION = '1.0007';
     @ISA         = qw(Exporter);
     @EXPORT      = qw();
     @EXPORT_OK   = qw();
     %EXPORT_TAGS = ();
 }
 
+$Win32::MSI::HighLevel::VERSION = '1.0007';
 
 use Carp;
 use Cwd;
