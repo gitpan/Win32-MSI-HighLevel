@@ -19,4 +19,4 @@ no_index:
     - inc
 requires:
   Win32::API: 0.46
-version: 1.0007
+version: 1.0008

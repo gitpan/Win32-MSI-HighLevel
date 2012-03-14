@@ -1,4 +1,4 @@
-Revision history for Perl module Win32::MSI::HighLevel
+Revision history for Perl module Win32::MSI::HighLevel (oldest first)
 
 1.000000 Tue Jan 22 21:52:52 2008
     - original version; created by ExtUtils::ModuleMaker 0.49
@@ -6,7 +6,7 @@ Revision history for Perl module Win32::MSI::HighLevel
 1.0001 Wed Jan 30 19:35:00 2008
     - Fixed 01_HighLevel.t test file to work with current test framework (issue
         reported by CPAN testers)
-    - Cleaned various sillynesses in HighLevel.pm POD
+    - Cleaned various silliness in HighLevel.pm POD
     - Added POD to helper modules
 
 1.0002 Thu Feb 07 19:14:00 2008
@@ -52,7 +52,7 @@ Revision history for Perl module Win32::MSI::HighLevel
     - Improve documentation for addDirectory
 
 1.0006
-    - Remove dependences on Test::Pod::Coverage and Test::Pod
+    - Remove dependencies on Test::Pod::Coverage and Test::Pod
     - Added support for non-file installing installers
     - Various file name and path checking bugs fixed
     - Fixed various POD documentation errors
@@ -62,5 +62,14 @@ Revision history for Perl module Win32::MSI::HighLevel
 
 1.0007 Thu Sep 15 22:32:00 2011
     - Allow a file to be specified as the key file when added to a component
-    - Move POD related tests out of distrubition tests
+    - Move POD related tests out of distribution tests
     - Minor POD tidying
+
+1.0008 Wed Mar 14 19:59:00 2012
+    - Clean up version handling
+    - Support installing services
+    - Document use of -secureProperties in various places
+    - Add -secureProperties parameter in various places
+    - Clean up various spelling errors and typos
+    - Add option method and fixExtraSep parameter to address bogus id generation
+        issue

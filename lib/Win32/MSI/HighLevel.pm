@@ -15,7 +15,7 @@ BEGIN {
     %EXPORT_TAGS = ();
 }
 
-$Win32::MSI::HighLevel::VERSION = '1.0007';
+$Win32::MSI::HighLevel::VERSION = '1.0008';
 
 use Carp;
 use Cwd;
@@ -69,6 +69,10 @@ our @EXPORT_OK = qw(
     msidbComponentAttributesNeverOverwrite
     msidbComponentAttributes64bit
 
+    SW_SHOWNORMAL
+    SW_SHOWMAXIMIZED
+    SW_SHOWMINNOACTIVE
+
     kReportUpdates
     );
 
@@ -78,7 +82,7 @@ Win32::MSI::HighLevel - Perl wrapper for Windows Installer API
 
 =head1 VERSION
 
-Version 1.0007
+Version 1.0008
 
 =head1 SYNOPSIS
 
@@ -143,7 +147,7 @@ This is the default.
 
 =item $Win32::MSI::MSIDBOPEN_DIRECT
 
-Opens read/write without transactional behaviour.
+Opens read/write without transactional behavior.
 
 =item $Win32::MSI::MSIDBOPEN_CREATE
 
@@ -154,7 +158,7 @@ This creates a new database in transactional mode.
 =head2 HighLevel Methods
 
 Generally sample usage is provided for each method followed by a description of
-the method, then followed by any named parameters recognised by the method.
+the method, then followed by any named parameters recognized by the method.
 
 Most methods require named parameters. Named parameters with an uppercase first
 letter map directly on to table columns. Named parameters with a lower case
@@ -194,6 +198,10 @@ use constant msidbComponentAttributesODBCDataSource    => 0x0020;
 use constant msidbComponentAttributesTransitive        => 0x0040;
 use constant msidbComponentAttributesNeverOverwrite    => 0x0080;
 use constant msidbComponentAttributes64bit             => 0x0100;
+
+use constant SW_SHOWNORMAL      => 1;
+use constant SW_SHOWMAXIMIZED   => 3;
+use constant SW_SHOWMINNOACTIVE => 7;
 
 my $MsiOpenDatabase =
     Win32::MSI::HighLevel::Common::_def(MsiOpenDatabase => "PPP");
@@ -408,6 +416,7 @@ sub new {
         };
 
     $params{-noisy} ||= 0;
+    $params{extraSep} = '-';
 
     return $class->SUPER::new($hdl, %params);
 }
@@ -609,7 +618,7 @@ sub addBinaryFile {
 
 Adds a cabinet file the the Cabs table and updates the media table to match.
 
-This routine is primaraly used by createCabs and should not generally be
+This routine is primarily used by createCabs and should not generally be
 required by users.
 
 =over 4
@@ -730,8 +739,7 @@ sub addComponent {
         if exists $params{-File} && exists $params{-KeyPath};
 
     if (exists $params{-requestedId}) {
-        $compName =
-            $self->_getUniqueID($params{-requestedId}, "Component", 72);
+        $compName = $self->_getUniqueID($params{-requestedId}, "Component", 72);
     } elsif (exists $params{-File}) {
         $compName = $self->_getUniqueID($params{-File}, "Component", 72);
     } elsif (exists $systemFolders{$params{-Directory_}}) {
@@ -1290,10 +1298,10 @@ to L</addDirectory> instead.
 #in subsequent calls to c<addDirPath> that add further directories from the same
 #context.
 #
-#Note that should not be used to create directorys outside the install context.
+#Note that should not be used to create directories outside the install context.
 #Instead use L</addCreateDirectory>.
 #
-#The following parameters are recognised by L</addDirPath>:
+#The following parameters are recognized by L</addDirPath>:
 #
 #=over 4
 #
@@ -1378,7 +1386,7 @@ default value is 0.
 
 Determines driver installation order. Packages are installed in increasing order
 of sequence number. Packages with the same sequence value are installed in
-arbitary order.
+arbitrary order.
 
 =back
 
@@ -1410,7 +1418,7 @@ configurations.
 
     my $root = $msi->addFeature (-name => 'Complete', -Title => 'Full install');
 
-The following parameters are recognised by L</addFeature>
+The following parameters are recognized by L</addFeature>
 
 =over 4
 
@@ -1901,6 +1909,15 @@ executed.
 
 Sequence position for execution of this action.
 
+=item I<-secureProperties>: optional
+
+A public property or array ref containing a list of public properties used in
+the I<-Condition> expression that need to be passed securely into the execute
+context.
+
+The property names will be added to the SecureCustomProperties property during
+L</writeTables>.
+
 =back
 
 =cut
@@ -1910,7 +1927,7 @@ sub addInstallExecuteSequence {
 
     Win32::MSI::HighLevel::Common::require(\%params, qw(-Action -Sequence));
     Win32::MSI::HighLevel::Common::allow(\%params,
-        qw(-Action -Condition -Sequence));
+        qw(-Action -Condition -Sequence -secureProperties));
 
     return $self->_addInstallExecuteSequenceRow(\%params);
 }
@@ -1984,6 +2001,15 @@ proceed.
 
 Error text shown if the launch condition evaluates false.
 
+=item I<-secureProperties>: optional
+
+A public property or array ref containing a list of public properties used in
+the I<-Condition> expression that need to be passed securely into the execute
+context.
+
+The property names will be added to the SecureCustomProperties property during
+L</writeTables>.
+
 =back
 
 =cut
@@ -1993,7 +2019,14 @@ sub addLaunchCondition {
 
     Win32::MSI::HighLevel::Common::require(\%params,
         qw(-Condition -Description));
-    Win32::MSI::HighLevel::Common::allow(\%params, qw(-Condition -Description));
+    Win32::MSI::HighLevel::Common::allow(\%params,
+        qw(-Condition -Description -secureProperties));
+
+    if (exists $params{-secureProperties}) {
+        my $param = $params{-secureProperties};
+
+        $param = join ';', ref $param ? @$param : $param;
+    }
 
     return $self->_addLaunchConditionRow(\%params);
 }
@@ -2031,7 +2064,7 @@ Sequence number of the last file in this media.
 
 =item I<-DiskPrompt>: optional
 
-Name (on the lable for physical media) used to identify the physical media
+Name (on the label for physical media) used to identify the physical media
 associated with this media entry.
 
 =item I<-Source>: optional
@@ -2114,7 +2147,7 @@ Add a registry entry.
 
 =item I<-Component_>: optional
 
-Id of the component controling installation of the registry value.
+Id of the component controlling installation of the registry value.
 
 This parameter is required unless I<-genRegKey> is used.
 
@@ -2384,7 +2417,7 @@ sub addSelfReg {
 
 =head3 addShortcut
 
-The following parameters are recognised by L</addShortcut>:
+The following parameters are recognized by L</addShortcut>:
 
 =over 4
 
@@ -2453,6 +2486,23 @@ number to the given id. The id actually used is returned.
 If C<-Shortcut> is omitted a suitable id will be generated from the C<-Name>
 value.
 
+=item I<-ShowCmd>: optional
+
+The mode used to show the window used by the shortcut when run. May be one of
+the following constants:
+
+=over
+
+=item SW_SHOWNORMAL - Show normalised
+
+=item SW_SHOWMAXIMIZED - Show maximised
+
+=item SW_SHOWMINNOACTIVE - Show iconised
+
+=back
+
+If C<-ShowCmd> is omitted default Windows behavior is used (SW_SHOWNORMAL).
+
 =item I<-Target>: optional (see also C<-folderTarget> and C<-target>)
 
 The Feature id or a Property id that specifies the target of the shortcut.
@@ -2498,9 +2548,9 @@ sub addShortcut {
     Win32::MSI::HighLevel::Common::require(\%params, qw(-name -featureId));
     Win32::MSI::HighLevel::Common::allow(
         \%params, qw(
-            -Arguments -Component_ -Description -Directory_ -featureId -folderTarget
-            -location -Hotkey -Icon_ -name -Shortcut -ShowCmd -Target -target -WkDir
-            -wkdir
+            -Arguments -Component_ -Description -Directory_ -featureId
+            -folderTarget -location -Hotkey -Icon_ -name -Shortcut -ShowCmd
+            -Target -target -WkDir -wkdir
             )
             );
 
@@ -2561,7 +2611,7 @@ sub addShortcut {
 Add an entry to the Signature table used by the AppSearch action to match
 previously installed applications.
 
-The following parameters are recognised by L</addSignature>:
+The following parameters are recognized by L</addSignature>:
 
 =over 4
 
@@ -2735,7 +2785,7 @@ The following attributes may be ored together:
     msidbUpgradeAttributesOnlyDetect          Detect only - don't uninstall
     msidbUpgradeAttributesIgnoreRemoveFailure Ignore uninstall failure
     msidbUpgradeAttributesVersionMinInclusive Include min version
-    msidbUpgradeAttributesVersionMaxInclusive Include max vesion
+    msidbUpgradeAttributesVersionMaxInclusive Include max version
     msidbUpgradeAttributesLanguagesExclusive  Include all langs except listed
 
 See the MSDN documentation for further information about these attributes.
@@ -2934,7 +2984,7 @@ Win32::MSI::HighLevel doesn't handle by default.
 Note that custom tables may be added to the installer file.
 
 The column specification comprises an array of column name => type pairs.
-Most of the types mentioned in the MSDN documentation are recognised, including:
+Most of the types mentioned in the MSDN documentation are recognized, including:
 
 =over 4
 
@@ -2972,8 +3022,8 @@ Most of the types mentioned in the MSDN documentation are recognised, including:
 
 =back
 
-Where the default type includes a size (number in parentesis) a different size
-may be supplied by including it in parentesis following the type:
+Where the default type includes a size (number in parenthesis) a different size
+may be supplied by including it in parenthesis following the type:
 
     Text(0)
 
@@ -3028,7 +3078,7 @@ sub createTable {
             Directory_  => [qw(Directory Required)],
             Attributes  => [qw(Integer Required)],
             Condition   => [qw(Condition)],
-            KeyPath     => [qw(KeyPath(72))],
+            KeyPath     => [qw(KeyPath(80))],
             ],
         ControlCondition => [
             Dialog_   => [qw(Key Identifier(72) Required)],
@@ -3141,8 +3191,31 @@ sub createTable {
             InstallMode => [qw(Identifier Required)],
             ],
         SelfReg => [
-            File_ => [qw(Key Identifier Required)],
+            File_ => [qw(Key Identifier(72) Required)],
             Cost  => [qw(Integer Required)]
+            ],
+        ServiceControl => [
+            ServiceControl => [qw(Key Identifier(72) Required)],
+            Name           => [qw(Formatted Required)],
+            Event          => [qw(Integer Required)],
+            Arguments      => [qw(Formatted)],
+            Wait           => [qw(Integer)],
+            Component_     => [qw(Identifier(72) Required)],
+            ],
+        ServiceInstall => [
+            ServiceInstall => [qw(Key Identifier(72) Required)],
+            Name           => [qw(Formatted Required)],
+            DisplayName    => 'Formatted',
+            ServiceType    => [qw(DoubleInteger Required)],
+            StartType      => [qw(DoubleInteger Required)],
+            ErrorControl   => [qw(DoubleInteger Required)],
+            LoadOrderGroup => 'Formatted',
+            Dependencies   => 'Formatted',
+            StartName      => 'Formatted',
+            Password       => 'Formatted',
+            Arguments      => 'Formatted',
+            Component_     => [qw(Identifier(72) Required)],
+            Description    => 'Formatted',
             ],
         Shortcut => [
             Shortcut               => [qw(Key Identifier(72) Required)],
@@ -3465,7 +3538,7 @@ sub getId {
     my ($self, $id, $context, $extra) = @_;
     $extra ||= '';
 
-    my $key = lc "$id-$extra";
+    my $key = lc "$id$self->{extraSep}$extra";
 
     $key =~ s/^[^|]*\|//;    # Retain only long file name portion
     $_[4] = $key if exists $_[4];    # 'Return' key
@@ -3590,7 +3663,7 @@ sub getTableEntry {
 =head3 getTargetDirID targetpath [public [wantedId]]
 
 L</getTargetDirID> returns a Directory table id given an install time target file
-path. Entries in the Directroy table will be created as required to generate an
+path. Entries in the Directory table will be created as required to generate an
 appropriate id.
 
     my $dirId = $msi->getTargetDirID ('[ProgramFilesFolder]\Wibbler\WibbleApp');
@@ -3762,16 +3835,140 @@ Summary Information Stream.
 sub importTable {
     my ($self, $table, $path) = @_;
 
-    #define ERROR_FUNCTION_FAILED              1627L // Function failed during execution.
+    #define ERROR_FUNCTION_FAILED      1627L // Function failed during execution
     #define ERROR_BAD_PATHNAME               161L
     #define ERROR_INVALID_HANDLE_STATE  1609L
     #define ERROR_INVALID_PARAMETER          87L
 
     $path = File::Spec->rel2abs($path);
+
     my $result = $MsiDatabaseImport->Call($self->{handle}, $path, "$table.idt");
 
     return undef unless $result;
     return _errorMsg();
+}
+
+
+=head3 installService
+
+Install a Win32 service that runs its own process.
+
+    $msi->installService(-serviceName => 'MyService', -Component_ => $component);
+
+At install time a previous instance of the service will be stopped and
+uninstalled. The new instance will then be installed and optionally started.
+
+=over
+
+=item I<-serviceName>: required
+
+Name used to identify the service. This must uniquely identify the service on
+the target system or unhappy things will happen.
+
+=item I<-Component_>: required
+
+The component that the service file is installed by. This is used by the
+installer to ensure the service is installed at the correct time.
+
+=item I<-name>: optional
+
+The name of the service to be installed. If a name is not provided -serviceName
+is used.
+
+=item I<-state>: optional
+
+One of 'auto' or 'demand' with 'auto' used by default.
+
+If the state is 'auto' the service will be started at install time and when the
+system boots.
+
+=item I<-type>: optional
+
+If the type is supplied it must currently be 'interactive' to set
+SERVICE_INTERACTIVE_PROCESS.
+
+SERVICE_WIN32_OWN_PROCESS is assumed.
+
+=item I<-Description>: optional
+
+A brief (fewer than 256 characters) description of the service. -name will be
+used by default.
+
+=back
+
+=cut
+
+sub installService {
+    my ($self, %params) = @_;
+    my %states = (auto => 2, demand => 3, disabled => 4);
+
+    Win32::MSI::HighLevel::Common::require(\%params,
+        qw(-serviceName -Component_));
+    Win32::MSI::HighLevel::Common::allow(\%params,
+        qw(-serviceName -name -state -Component_ -Description));
+
+    $params{-name}        ||= $params{-serviceName};
+    $params{-Description} ||= $params{-name};
+    $params{-state}       ||= 'auto';
+    $params{-state} = $states{lc $params{-state}} || 2;
+
+    my $type = 0x10;    # SERVICE_WIN32_OWN_PROCESS
+
+    $type |= 0x100 if lc $params{-type} eq 'interactive';
+
+    my %instParams = (
+        -ServiceInstall => $params{-serviceName},
+        -Component_     => $params{-Component_},
+        -Name           => $params{-name},
+        -ServiceType    => $type,
+        -StartType      => $params{-state},
+        -ErrorControl   => 1,
+        -Description    => $params{-Description},
+        );
+
+    my $result = $self->_addServiceInstallRow(\%instParams);
+    my $eventBits = 0xAA; # Full start/stop and delete/install processing
+
+    $eventBits |= 0x01 if $params{-state} == 2; # Autostart
+
+    my %ctrlParams = (
+        -ServiceControl => $params{-serviceName},
+        -Component_     => $params{-Component_},
+        -Name           => $params{-name},
+        -Event          => $eventBits,
+        );
+
+    $result = $self->_addServiceControlRow(\%ctrlParams);
+    return;
+}
+
+
+=head3 option
+
+Set various optional behavior.
+
+=over
+
+=item fixExtraSep
+
+Fix the separator bug which can generates bogus identifiers for Component names
+and in other situations. Note that this can lead to components with different
+names in installers where this setting has changed state and lead to bad
+behavior when updating installed components.
+
+=back
+
+=cut
+
+sub option {
+    my ($self, $option, $value) = @_;
+
+    if ($option eq 'fixExtraSep') {
+        $self->{extraSep} = '.';
+        return;
+    }
+
+    die "Invalid option type passed to option: $option\n";
 }
 
 
@@ -3987,9 +4184,11 @@ sub registerExtension {
         if (exists $params{-Verb}) {
             my %rec = (-Extension_ => $extension, -Verb => $params{-Verb});
 
-            $rec{-Sequence} = $params{-Sequence} if exists $params{-Sequence};
+            $rec{-Sequence} = $params{-Sequence}
+                if exists $params{-Sequence};
             $rec{-Command}  = $params{-Command}  if exists $params{-Command};
-            $rec{-Argument} = $params{-Argument} if exists $params{-Argument};
+            $rec{-Argument} = $params{-Argument}
+                if exists $params{-Argument};
 
             $rec{-lu} = "$extension/$params{-Verb}";
             $self->_addRow('Verb', 'lu', \%rec);
@@ -4019,7 +4218,8 @@ sub registerExtension {
         $rec{-Description} = $params{-Description}
             if exists $params{-Description};
         $rec{-Icon_}     = $params{-Icon_}     if exists $params{-Icon_};
-        $rec{-IconIndex} = $params{-IconIndex} if exists $params{-IconIndex};
+        $rec{-IconIndex} = $params{-IconIndex}
+            if exists $params{-IconIndex};
 
         $self->_addRow('ProgId', 'ProgId', \%rec);
     }
@@ -4079,7 +4279,7 @@ version of a product to be upgraded interchangeably.
 Do not include version information in -Name if you rely on the default
 UpgradeCode GUID generation unless the version information is invariant across
 all product versions you expect to be able to upgrade. For most upgrade purposes
-this means that including a major version number in the name is ok, but
+this means that including a major version number in the name is OK, but
 including a minor version number is not.
 
 =back
@@ -4314,13 +4514,22 @@ sub writeTables {
     my $scp = $self->getProperty('SecureCustomProperties') || '';
     my %properties = map {$_ => 1} split ';', $scp;
 
-    for my $tableColumn ([Upgrade => '-ActionProperty']) {
+    for my $tableColumn (
+        [Upgrade                => '-ActionProperty'],
+        [LaunchCondition        => '-secureProperties'],
+        [InstallExecuteSequence => '-secureProperties'],
+        )
+    {
         my ($table, $column) = @$tableColumn;
 
         next unless exists $self->{tables}{$table};
         for my $entry (keys %{$self->{tables}{$table}}) {
+            my $row = $self->{tables}{$table}{$entry};
+
+            next if ! ref $row || ! exists $row->{$column};
             next if $entry =~ /^_/;    # Ignore flags
-            $properties{$self->{tables}{$table}{$entry}{$column}} = 1;
+
+            $properties{$row->{$column}} = 1;
         }
     }
 
@@ -4339,7 +4548,8 @@ sub writeTables {
         croak "Table $tableName requires a root entry but none was provided"
             if exists $fieldHash->{_root} and !defined $fieldHash->{_root};
 
-        print "Updating table $tableName\n" if $self->{-noisy} & kReportUpdates;
+        print "Updating table $tableName\n"
+            if $self->{-noisy} & kReportUpdates;
 
         my $rec = $table->createRecord();
 
@@ -4357,7 +4567,8 @@ sub writeTables {
                 grep {/^-[A-Z]/}
                 keys %$rowData;
 
-            defined $rowData->{"-$_"} and $rec->setValue($_, $rowData->{"-$_"})
+            defined $rowData->{"-$_"}
+                and $rec->setValue($_, $rowData->{"-$_"})
                 for @columns;
             $rec->{state} = $rowData->{state};
 
@@ -4393,7 +4604,7 @@ sub writeTables {
 # _addXxxRow routines handle adding table row information to the internal
 # representation of the database. They call through to _addRow which expects a
 # table name, row look up key name (excluding - prefix), the record and an
-# optional auxillary lookup string. See _addRow for lookup key details.
+# optional auxiliary look up string. See _addRow for look up key details.
 
 sub _addBinaryRow {
     my ($self, $rec) = @_;
@@ -4517,7 +4728,8 @@ sub _addFeatureRow {
 
     $self->{tables}{Feature} ||= {};
 
-    unless (defined $rec->{-Feature_Parent} and length $rec->{-Feature_Parent})
+    unless (defined $rec->{-Feature_Parent}
+        and length $rec->{-Feature_Parent})
     {
         my $table = $self->{tables}{Feature};
 
@@ -4612,27 +4824,31 @@ sub _addRegLocatorRow {
 
 
 # $key must be a key into the hash referenced by $rec. Often it will be a table
-# field. Where more than one field is a key field a synthentic key may be
+# field. Where more than one field is a key field a synthetic key may be
 # generated by:
 #   _genLu ($rec, qw(Key1 Key2 ...));
 # and 'lu' is passed in as the $key value.
 # The key entries MUST be sorted by column name!
-#
+
 # Where a lookup by something other than the table key is required the $lu
 # parameter may be provided. A {lookup}{tableName}{$lu} entry is then generated
 # to provide a mapping from the lookup key to the actual table entry.
 
+# Note that keys that match /^(_|-[a-z])/ are retained by _addRow but are
+# ignored by table processing.
+
 sub _addRow {
-    my ($self, $name, $key, $rec, $lu) = @_;
-    my $table = $self->{tables}{$name} ||= {};
+    my ($self, $tableName, $key, $rec, $lu) = @_;
+    my $table = $self->{tables}{$tableName} ||= {};
     my $hashKey = lc $rec->{"-$key"};
 
-    croak "-$key missing from $name table entry.\n"
+    croak "-$key missing from $tableName table entry.\n"
         . "This may be a HighLevel bug where '-lu' should be used for the lookup key"
         unless exists $rec->{-$key};
 
     if (exists $table->{$hashKey}) {
-        croak "Duplicate $key $rec->{-$key} entry not allowed in $name table"
+        croak
+            "Duplicate $key $rec->{-$key} entry not allowed in $tableName table"
             unless $rec->{skipDup};
 
         return $rec->{-$key};
@@ -4644,8 +4860,8 @@ sub _addRow {
 
     if (defined $lu) {
         $lu                                          = lc $lu;
-        $self->{lookup}{$name}{$lu}                  = $hashKey;
-        $self->{id_idToKey}{$name}{lc $rec->{-$key}} = $lu;
+        $self->{lookup}{$tableName}{$lu}                  = $hashKey;
+        $self->{id_idToKey}{$tableName}{lc $rec->{-$key}} = $lu;
     }
 
     if ($rec->{state}) {
@@ -4661,6 +4877,20 @@ sub _addSelfRegRow {
     my ($self, $rec) = @_;
 
     return $self->_addRow('SelfReg', 'File_', $rec);
+}
+
+
+sub _addServiceControlRow {
+    my ($self, $rec) = @_;
+
+    return $self->_addRow('ServiceControl', 'ServiceControl', $rec);
+}
+
+
+sub _addServiceInstallRow {
+    my ($self, $rec) = @_;
+
+    return $self->_addRow('ServiceInstall', 'ServiceInstall', $rec);
 }
 
 
@@ -4844,7 +5074,8 @@ sub _findFileId {
     $file = lc $file;
     $path = lc $path;
 
-    my @candidates = grep {lc($self->{tables}{File}{$_}{-FileName}) eq $file}
+    my @candidates =
+        grep {lc($self->{tables}{File}{$_}{-FileName}) eq $file}
         grep {$_ !~ /^_/} keys %{$self->{tables}{File}};
     my $match;
 
@@ -4909,8 +5140,8 @@ sub _getFullFilePath {
 # $extra may be provided to disambiguate between id's - often a file path
 
 sub _getUniqueID {
-
-    # $context should be the bare table name if the id is a table key (eg 'File')
+    # $context should be the bare table name if the id is a table key (eg
+    # 'File')
     my ($self, $reqId, $context, $length, $extra) = @_;
     my $id = $reqId;
     my $key;
@@ -4962,7 +5193,7 @@ sub _haveUniqueId {
     my ($self, $id, $context, $extra) = @_;
     $extra ||= '';
 
-    my $key = lc "$id-$extra";
+    my $key = lc "$id$self->{extraSep}$extra";
 
     $key =~ s/^[^|]*\|//;    # Retain only long file name portion
     $_[4] = $key if exists $_[4];    # 'Return' key
